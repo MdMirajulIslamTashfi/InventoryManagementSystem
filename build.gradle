@@ -1,0 +1,60 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.0.6'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.tashfi'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// spring reactive web
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+	// database (R2DBC) (reactive)
+	implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
+	runtimeOnly 'org.postgresql:r2dbc-postgresql'
+
+	// liquibase (database migration)
+	implementation 'org.springframework.boot:spring-boot-starter-liquibase'
+	runtimeOnly 'org.postgresql:postgresql'
+
+	// Model Mapper
+	implementation 'org.modelmapper:modelmapper:3.1.1'
+
+	// spring security
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+
+	// validation
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+
+	// lombok
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// dev tools
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	// tests
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'io.projectreactor:reactor-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testCompileOnly 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

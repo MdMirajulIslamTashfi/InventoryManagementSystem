@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-customer-table
+      author: tashfi
+      changes:
+        - sqlFile:
+            path: db-migration/create-customer-entity.sql
+            relativeToChangelogFile: false
