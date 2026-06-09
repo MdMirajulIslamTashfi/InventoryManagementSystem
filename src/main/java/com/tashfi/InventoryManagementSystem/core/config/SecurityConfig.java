@@ -20,6 +20,7 @@ public class SecurityConfig {
                 .authorizeExchange(exchange -> exchange
                         // public endpoints
                         .pathMatchers(HttpMethod.POST, "/api/customers/register").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/customers/login").permitAll()
                         // everything else requires auth (we'll expand this with JWT later)
                         .anyExchange().permitAll() // change to .authenticated() once JWT is set up
                 )

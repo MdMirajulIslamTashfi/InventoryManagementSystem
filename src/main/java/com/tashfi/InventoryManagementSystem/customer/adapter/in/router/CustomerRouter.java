@@ -19,6 +19,7 @@ public class CustomerRouter {
                 .nest(RequestPredicates.accept(MediaType.APPLICATION_JSON), builder -> builder
                         .GET(RouterName.CUSTOMER_BASE_URL, customerHandler::getAllCustomers)
                         .POST(RouterName.CUSTOMER_REGISTER_URL, customerHandler::registerCustomer)
+                        .POST(RouterName.CUSTOMER_LOGIN_URL, customerHandler::loginCustomer)
                 ).build();
     }
 }

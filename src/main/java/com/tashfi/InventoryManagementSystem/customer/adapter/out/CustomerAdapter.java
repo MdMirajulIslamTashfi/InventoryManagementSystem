@@ -30,6 +30,11 @@ public class CustomerAdapter implements CustomerPersistencePort {
         return customerRepository.save(toEntity(customer)).map(this::toDomain);
     }
 
+    @Override
+    public Mono<Customer> findByEmail(String email) {
+        return customerRepository.findByEmail(email).map(this::toDomain);
+    }
+
     // ── mappers ──────────────────────────────────────────────
 
     private Customer toDomain(CustomerEntity entity) {

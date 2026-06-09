@@ -5,12 +5,13 @@ import reactor.core.publisher.Mono;
 
 public class ValidationUtil {
 
-    private static final String NAME_PATTERN    = "^[a-zA-Z ]+$";
-    private static final String EMAIL_PATTERN   = "^[0-9a-z._+-]+@[a-z0-9]+\\.[a-z0-9]{2,20}$";
-    private static final String INPUT_PATTERN   = "^[a-zA-Z0-9._@, +-]+$";
+    private static final String NAME_PATTERN = "^[a-zA-Z ]+$";
+    private static final String EMAIL_PATTERN = "^[0-9a-z._+-]+@[a-z0-9]+\\.[a-z0-9]{2,20}$";
+    private static final String INPUT_PATTERN = "^[a-zA-Z0-9._@, +-]+$";
     private static final String CONTACT_PATTERN = "^\\d{11}$";
 
-    private ValidationUtil() {}
+    private ValidationUtil() {
+    }
 
     public static Mono<String> validateName(String name) {
         if (name == null || !name.matches(NAME_PATTERN))

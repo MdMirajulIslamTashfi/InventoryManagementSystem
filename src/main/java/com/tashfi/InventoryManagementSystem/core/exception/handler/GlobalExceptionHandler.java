@@ -46,10 +46,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public Mono<ErrorResponse> handleGeneric(Exception ex) {
+        ex.printStackTrace();
         return Mono.just(ErrorResponse.builder()
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .error("Internal Server Error")
-                .message("Something went wrong" + ex.getMessage())
+                .message(ex.getMessage())
                 .timestamp(LocalDateTime.now())
                 .build());
     }

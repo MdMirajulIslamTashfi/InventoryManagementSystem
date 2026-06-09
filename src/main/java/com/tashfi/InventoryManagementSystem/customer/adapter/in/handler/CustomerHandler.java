@@ -1,6 +1,7 @@
 package com.tashfi.InventoryManagementSystem.customer.adapter.in.handler;
 
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.CustomerUseCase;
+import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.request.CustomerLoginRequestDto;
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.request.CustomerRegistrationRequestDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,14 @@ public class CustomerHandler {
         return request.bodyToMono(CustomerRegistrationRequestDto.class)
                 .flatMap(customerUseCase::registerCustomer)
                 .flatMap(response -> ServerResponse.status(HttpStatus.CREATED)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(response));
+    }
+
+    public Mono<ServerResponse> loginCustomer(ServerRequest request) {
+        return request.bodyToMono(CustomerLoginRequestDto.class)
+                .flatMap(customerUseCase::loginCustomer)
+                .flatMap(response -> ServerResponse.ok()
                         .contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(response));
     }

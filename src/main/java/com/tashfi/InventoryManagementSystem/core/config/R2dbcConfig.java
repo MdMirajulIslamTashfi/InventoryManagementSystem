@@ -1,5 +1,6 @@
 package com.tashfi.InventoryManagementSystem.core.config;
 
+import com.tashfi.InventoryManagementSystem.core.enums.CreatedBy;
 import com.tashfi.InventoryManagementSystem.core.enums.Gender;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,7 +19,9 @@ public class R2dbcConfig {
     public R2dbcCustomConversions r2dbcCustomConversions() {
         return R2dbcCustomConversions.of(PostgresDialect.INSTANCE, List.of(
                 new StringToGenderConverter(),
-                new GenderToStringConverter()
+                new GenderToStringConverter(),
+                new StringToCreatedByConverter(),
+                new CreatedByToStringConverter()
         ));
     }
 
@@ -34,6 +37,22 @@ public class R2dbcConfig {
     static class GenderToStringConverter implements Converter<Gender, String> {
         @Override
         public String convert(Gender source) {
+            return source.name();
+        }
+    }
+
+    @ReadingConverter
+    static class StringToCreatedByConverter implements Converter<String, CreatedBy> {
+        @Override
+        public CreatedBy convert(String source) {
+            return CreatedBy.valueOf(source.toUpperCase());
+        }
+    }
+
+    @WritingConverter
+    static class CreatedByToStringConverter implements Converter<CreatedBy, String> {
+        @Override
+        public String convert(CreatedBy source) {
             return source.name();
         }
     }

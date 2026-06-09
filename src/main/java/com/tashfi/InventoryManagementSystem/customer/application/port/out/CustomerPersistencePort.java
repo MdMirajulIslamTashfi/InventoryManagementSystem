@@ -6,6 +6,10 @@ import reactor.core.publisher.Mono;
 
 public interface CustomerPersistencePort {
     Flux<Customer> findAllCustomers();
+
     Mono<Boolean> existsByEmail(String email);
+
     Mono<Customer> saveCustomer(Customer customer);
+
+    Mono<Customer> findByEmail(String email);
 }

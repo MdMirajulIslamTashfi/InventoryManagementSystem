@@ -4,5 +4,12 @@ databaseChangeLog:
       author: tashfi
       changes:
         - sqlFile:
-            path: db-migration/create-customer-entity.sql
+            path: db-migration/create-customer-table.sql
+            relativeToChangelogFile: false
+  - changeSet:
+      id: 002-update-customer-table-add-created-at-by-columns
+      author: tashfi
+      changes:
+        - sqlFile:
+            path: db-migration/update-customer-table-add-created-at-by-columns.sql
             relativeToChangelogFile: false

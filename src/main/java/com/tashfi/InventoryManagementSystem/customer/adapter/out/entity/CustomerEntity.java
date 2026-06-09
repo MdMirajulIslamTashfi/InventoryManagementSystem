@@ -1,5 +1,6 @@
 package com.tashfi.InventoryManagementSystem.customer.adapter.out.entity;
 
+import com.tashfi.InventoryManagementSystem.core.enums.CreatedBy;
 import com.tashfi.InventoryManagementSystem.core.enums.Gender;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,6 +11,7 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
@@ -18,6 +20,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @Table(name = "customer")
 public class CustomerEntity {
+
     @Id
     private UUID id;
 
@@ -31,9 +34,15 @@ public class CustomerEntity {
 
     @Column("date_of_birth")
     private LocalDate dateOfBirth;
+
     private String address;
     private String contact;
     private String email;
     private String password;
 
+    @Column("created_by")
+    private CreatedBy createdBy;
+
+    @Column("created_at")
+    private LocalDateTime createdAt;
 }
