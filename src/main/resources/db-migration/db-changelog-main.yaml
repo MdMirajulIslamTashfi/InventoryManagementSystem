@@ -13,3 +13,17 @@ databaseChangeLog:
         - sqlFile:
             path: db-migration/update-customer-table-add-created-at-by-columns.sql
             relativeToChangelogFile: false
+  - changeSet:
+      id: 003-create-product-category-table
+      author: tashfi
+      changes:
+        - sqlFile:
+            path: db-migration/create-product-category-table.sql
+            relativeToChangelogFile: false
+  - changeSet:
+      id: 004-create-product-table
+      author: tashfi
+      changes:
+        - sqlFile:
+            path: db-migration/create-product-table.sql
+            relativeToChangelogFile: false

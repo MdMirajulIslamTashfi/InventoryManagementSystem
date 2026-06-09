@@ -1,8 +1,6 @@
 package com.tashfi.InventoryManagementSystem.core.exception.handler;
 
-import com.tashfi.InventoryManagementSystem.core.exception.CustomerNotFoundException;
-import com.tashfi.InventoryManagementSystem.core.exception.DuplicateEmailException;
-import com.tashfi.InventoryManagementSystem.core.exception.ValidationException;
+import com.tashfi.InventoryManagementSystem.core.exception.*;
 import com.tashfi.InventoryManagementSystem.core.exception.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -39,6 +37,36 @@ public class GlobalExceptionHandler {
         return Mono.just(ErrorResponse.builder()
                 .status(HttpStatus.NOT_FOUND.value())
                 .error("Not Found")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build());
+    }
+
+    @ExceptionHandler(ProductNotFoundException.class)
+    public Mono<ErrorResponse> handleProductNotFound(ProductNotFoundException ex) {
+        return Mono.just(ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Not Found")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build());
+    }
+
+    @ExceptionHandler(CategoryNotFoundException.class)
+    public Mono<ErrorResponse> handleCategoryNotFound(CategoryNotFoundException ex) {
+        return Mono.just(ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Not Found")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build());
+    }
+
+    @ExceptionHandler(DuplicateProductException.class)
+    public Mono<ErrorResponse> handleDuplicateProduct(DuplicateProductException ex) {
+        return Mono.just(ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .error("Duplicate Entry")
                 .message(ex.getMessage())
                 .timestamp(LocalDateTime.now())
                 .build());

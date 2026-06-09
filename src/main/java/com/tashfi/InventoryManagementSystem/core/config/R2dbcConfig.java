@@ -2,6 +2,7 @@ package com.tashfi.InventoryManagementSystem.core.config;
 
 import com.tashfi.InventoryManagementSystem.core.enums.CreatedBy;
 import com.tashfi.InventoryManagementSystem.core.enums.Gender;
+import com.tashfi.InventoryManagementSystem.core.enums.ProductStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -21,7 +22,9 @@ public class R2dbcConfig {
                 new StringToGenderConverter(),
                 new GenderToStringConverter(),
                 new StringToCreatedByConverter(),
-                new CreatedByToStringConverter()
+                new CreatedByToStringConverter(),
+                new StringToProductStatusConverter(),
+                new ProductStatusToStringConverter()
         ));
     }
 
@@ -53,6 +56,22 @@ public class R2dbcConfig {
     static class CreatedByToStringConverter implements Converter<CreatedBy, String> {
         @Override
         public String convert(CreatedBy source) {
+            return source.name();
+        }
+    }
+
+    @ReadingConverter
+    static class StringToProductStatusConverter implements Converter<String, ProductStatus> {
+        @Override
+        public ProductStatus convert(String source) {
+            return ProductStatus.valueOf(source.toUpperCase());
+        }
+    }
+
+    @WritingConverter
+    static class ProductStatusToStringConverter implements Converter<ProductStatus, String> {
+        @Override
+        public String convert(ProductStatus source) {
             return source.name();
         }
     }
