@@ -21,6 +21,11 @@ public class SecurityConfig {
                         // public endpoints
                         .pathMatchers(HttpMethod.POST, "/api/customers/register").permitAll()
                         .pathMatchers(HttpMethod.POST, "/api/customers/login").permitAll()
+
+                        // category end points
+                        .pathMatchers(HttpMethod.POST, "/api/categories", "/api/categories/**").permitAll()
+                        // product end points
+                        .pathMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
                         // everything else requires auth (we'll expand this with JWT later)
                         .anyExchange().permitAll() // change to .authenticated() once JWT is set up
                 )
