@@ -30,6 +30,9 @@ public class ProductEntity {
     @Transient
     private String categoryName;
 
+    @Column("images")
+    private String images;
+
     private String name;
     private String description;
     private Integer quantity;

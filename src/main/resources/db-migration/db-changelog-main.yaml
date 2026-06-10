@@ -27,3 +27,17 @@ databaseChangeLog:
         - sqlFile:
             path: db-migration/create-product-table.sql
             relativeToChangelogFile: false
+  - changeSet:
+      id: 005-update-product-table-add-image-column
+      author: tashfi
+      changes:
+        - sqlFile:
+            path: db-migration/update-product-table-add-image-column.sql
+            relativeToChangelogFile: false
+  - changeSet:
+      id: 006-update-product-table-change-image-column
+      author: tashfi
+      changes:
+        - sqlFile:
+            path: db-migration/006-update-product-table-change-image-column.sql
+            relativeToChangelogFile: false

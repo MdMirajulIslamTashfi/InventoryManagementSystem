@@ -1,0 +1,5 @@
+ALTER TABLE product
+DROP COLUMN IF EXISTS image_path;
+
+ALTER TABLE product
+    ADD COLUMN IF NOT EXISTS images VARCHAR (2000);

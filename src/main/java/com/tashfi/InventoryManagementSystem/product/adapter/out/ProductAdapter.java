@@ -58,6 +58,7 @@ public class ProductAdapter implements ProductPersistencePort {
                     existing.setPrice(product.getPrice() != null ? product.getPrice() : existing.getPrice());
                     existing.setSku(product.getSku() != null ? product.getSku() : existing.getSku());
                     existing.setStatus(product.getStatus() != null ? product.getStatus() : existing.getStatus());
+                    existing.setImages(product.getImages() != null ? product.getImages() : existing.getImages());
                     existing.setUpdatedAt(product.getUpdatedAt());
                     return productRepository.save(existing);
                 })
@@ -80,6 +81,7 @@ public class ProductAdapter implements ProductPersistencePort {
                 .id(e.getId())
                 .categoryId(e.getCategoryId())
                 .categoryName(categoryName)
+                .images(e.getImages())
                 .name(e.getName())
                 .description(e.getDescription())
                 .quantity(e.getQuantity())
@@ -95,6 +97,7 @@ public class ProductAdapter implements ProductPersistencePort {
         return ProductEntity.builder()
                 .id(p.getId())
                 .categoryId(p.getCategoryId())
+                .images(p.getImages())
                 .name(p.getName())
                 .description(p.getDescription())
                 .quantity(p.getQuantity())

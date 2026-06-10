@@ -18,6 +18,7 @@ public class Product {
     private UUID id;
     private UUID categoryId;
     private String categoryName;
+    private String images;
     private String name;
     private String description;
     private Integer quantity;
