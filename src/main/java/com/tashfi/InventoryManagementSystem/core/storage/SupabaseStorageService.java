@@ -56,7 +56,10 @@ public class SupabaseStorageService implements StorageService {
         if (!ALLOWED_TYPES.contains(contentType))
             return Mono.error(new ValidationException("Only JPEG, PNG, and WEBP images are allowed"));
 
-        String fileName = imageUtil.buildFileName(file.getOriginalFilename(), productIdentifier);
+        if (file.getSize() > 1024 * 1024)
+            return Mono.error(new ValidationException("Image must not exceed 1MB"));
+
+        String fileName  = imageUtil.buildFileName(file.getOriginalFilename(), productIdentifier);
         String extension = imageUtil.getExtension(fileName);
 
         return Mono.fromCallable(() -> imageUtil.compressBytes(file.getBytes(), extension))

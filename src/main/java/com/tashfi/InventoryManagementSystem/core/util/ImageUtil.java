@@ -26,24 +26,33 @@ public class ImageUtil {
     private static final DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
+    // target: output is ~25% of original file size
+    // achieved by scaling dimensions to 70% + quality 0.6
+    // both together reliably hit ~25% of original size
+    private static final double DIMENSION_SCALE = 0.70;
+    private static final double OUTPUT_QUALITY   = 0.60;
+    private static final long   MAX_BYTES        = 1024 * 1024; // 1MB hard limit
+
     @Value("${app.upload.path}")
     private String uploadPath;
 
-    // used by LocalStorageService — saves to disk
     public String saveImage(MultipartFile file, String productIdentifier) throws IOException {
         String contentType = file.getContentType() != null ? file.getContentType() : "";
 
         if (!ALLOWED_TYPES.contains(contentType))
             throw new ValidationException("Only JPEG, PNG, and WEBP images are allowed");
 
+        if (file.getSize() > MAX_BYTES)
+            throw new ValidationException("Image must not exceed 1MB");
+
         String originalFilename = file.getOriginalFilename() != null
                 ? sanitize(file.getOriginalFilename())
                 : "image";
 
-        String extension    = getExtension(originalFilename);
-        String timestamp    = LocalDateTime.now().format(FORMATTER);
-        String identifier   = sanitize(productIdentifier);
-        String fileName     = identifier + "_" + stripExtension(originalFilename)
+        String extension  = getExtension(originalFilename);
+        String timestamp  = LocalDateTime.now().format(FORMATTER);
+        String identifier = sanitize(productIdentifier);
+        String fileName   = identifier + "_" + stripExtension(originalFilename)
                 + "_" + timestamp + "." + extension;
 
         byte[] compressed = compressBytes(file.getBytes(), extension);
@@ -55,21 +64,26 @@ public class ImageUtil {
         return "/uploads/products/" + fileName;
     }
 
-    // used by SupabaseStorageService — compresses bytes before uploading
     public byte[] compressBytes(byte[] bytes, String extension) throws IOException {
-        if (extension.equalsIgnoreCase("webp")) return bytes;
+        // webp not supported by Thumbnailator output — validate size only
+        if (extension.equalsIgnoreCase("webp")) {
+            if (bytes.length > MAX_BYTES)
+                throw new ValidationException("WEBP image must not exceed 1MB");
+            return bytes;
+        }
 
         String format = extension.equalsIgnoreCase("png") ? "png" : "jpeg";
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
+
         Thumbnails.of(new ByteArrayInputStream(bytes))
-                .scale(1.0)
+                .scale(DIMENSION_SCALE)      // shrink dimensions to 70%
                 .outputFormat(format)
-                .outputQuality(0.5)
+                .outputQuality(OUTPUT_QUALITY) // 60% quality on top of dimension reduction
                 .toOutputStream(out);
 
-        byte[] compressed = out.toByteArray();
-        return compressed.length < bytes.length ? compressed : bytes;
+        // always return compressed — never fall back to original
+        return out.toByteArray();
     }
 
     public String buildFileName(String originalFilename, String productIdentifier) {
