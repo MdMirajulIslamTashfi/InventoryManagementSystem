@@ -1,0 +1,192 @@
+name: Inventory Management System - CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  JAVA_VERSION: '25'
+  IMAGE_NAME: inventory_management_system
+
+jobs:
+  # JOB 1: BUILD AND TEST
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: STEP 1 - Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: STEP 2 - Document the Build Environment
+        run: |
+          echo "========================================="
+          echo "INVENTORY MANAGEMENT SYSTEM - CI PIPELINE"
+          echo "========================================="
+          echo ""
+          echo " Framework    : Spring Boot 4.0.6 (Web)"
+          echo " JAVA         : ${{ env.JAVA_VERSION }}"
+          echo " Build tool   : Gradle (Groovy DSL)"
+          echo "  Branch     : ${{ github.ref_name }}"
+          echo "  Commit     : ${{ github.sha }}"
+          echo "  Triggered  : ${{ github.event_name }}"
+          echo ""
+          echo "  Architecture: Hexagonal (Ports & Adapters)"
+          echo "  Domains     : customer, product"
+          echo "  Profiles    : local (dev machine), dev (Supabase)"
+          echo "=============================================="
+
+      - name: STEP 3 - Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: STEP 4 - Document Gradle Setup
+        run: |
+          echo "============================================="
+          echo "              GRADLE SETUP                   "
+          echo "============================================="
+          echo "Caching Gradle dependencies for faster builds"
+          echo "build.gradle (Groovy DSL)"
+          echo "---------------------------------------------"
+
+      - name: STEP 5 - Cache Gradle Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: gradle-
+
+      - name: STEP 6 - Grant execute permission to Gradle wrapper
+        run: chmod +x gradlew
+
+      - name: STEP 7 - Document of what build does
+        run: |
+          echo "============================================="
+          echo "              BUILDING THE PROJECT           "
+          echo "============================================="
+          echo ""
+          echo "Running ./gradlew build"
+          echo ""
+          echo "This compiles all source files under:"
+          echo "    src/main/java/com/tashfi/InvertoryManagementSystem"
+          echo ""
+          echo "Key dependencies being compiled:"
+          echo "    - spring-boot-starter-webflux    (reactive HTTP)"
+          echo "    - spring-boot-starter-data-r2dbc (reactive DB)"
+          echo "    - spring-boot-starter-security   (JWT auth)"
+          echo "    - spring-boot-starter-liquibase  (DB migrations)"
+          echo "    - jjwt 0.12.6                    (JWT library)"
+          echo "    - thumbnailator                  (image compression)"
+          echo "    - lombok                         (boilerplate reduction)"
+          echo "----------------------------------------------"
+
+      - name: STEP 8 - Build with gradle
+        run: ./gradlew build -x test
+
+      - name: STEP 9 - Document test setup
+        run: |
+          echo "=============================================="
+          echo "                 RUNNING TESTS                "
+          echo "=============================================="
+          echo "  Test framework : JUnit 5"
+          echo "  Extras         : reactor-test, spring-security-test"
+          echo "  Running: ./gradlew test"
+          echo "----------------------------------------------"
+
+      - name: STEP 10 - Run tests
+        run: ./gradlew test
+
+      - name: STEP 11 - upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: build/libs/*.jar
+          retention-days: 1
+
+  # JOB 2: DOCKER BUILD AND PUSH
+  docker:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: STEP 1 - Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: STEP 2 - Document Docker Setup
+        run: |
+          echo "==================================="
+          echo "         DOCKET IMAGE BUILD        "
+          echo "==================================="
+          echo ""
+          echo " Image name    :  ${{ env.IMAGE_NAME }}"
+          echo " Registry      :  Docker Hub "
+          echo " Tags          :  latest, ${{ github.sha }}
+          echo "" 
+          echo " The Docker image packages the Spring Boot fat jar"
+          echo " produced by ./gradlew build into a lightweight"
+          echo " Eclipse Tenurin JRE runtime image."
+          echo ""
+          echo "IMPORTANT: The image contains no secrets."
+          echo "  All env vars (DB, Supabase, JWT) must be passed"
+          echo "  at container runtime via -e or docker-compose."
+          echo "=============================================="
+
+      - name: STEP 3 - Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: build/libs/
+
+      - name: STEP 4 - Log in to Docker Hub
+        uses: docker/login-activity@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: STEP 5 - Document image tagging strategy
+        run: |
+          echo "=============================================="
+          echo "              IMAGE TAGGING                   "
+          echo "=============================================="
+          echo "  :latest → always points to latest main build"
+          echo "  :sha    → ${{ github.sha }}"
+          echo "            pinned tag for rollback if needed"
+          echo "----------------------------------------------"
+
+      - name: STEP 6 - Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: STEP 7 - Confirm Push
+        run: |
+          echo "=============================================="
+          echo "  IMAGE PUSHED SUCCESSFULLY"
+          echo "=============================================="
+          echo "  docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+          echo ""
+          echo "  To run locally with dev profile:"
+          echo "  docker run -p 8080:8080 \\"
+          echo "      -e SPRING_PROFILES_ACTIVE=dev \\"
+          echo "      -e SPRING.R2DBC.USERNAME=... \\"
+          echo "      -e SPRING.R2DBC.PASSWORD=... \\"
+          echo "      -e SUPABASE.URL=... \\"
+          echo "      -e SUPABASE.ANON-KEY=... \\"
+          echo "      -e SUPABASE.JWT.SECRET=... \\"
+          echo "      -e SUPABASE.STORAGE.BUCKET=... \\"
+          echo "      ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+          echo "----------------------------------------------"
