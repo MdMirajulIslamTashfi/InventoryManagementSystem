@@ -82,4 +82,20 @@ public class GlobalExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .build());
     }
+
+    public Mono<ErrorResponse> handle(Throwable ex) {
+        if (ex instanceof ValidationException e)
+            return handleValidation(e);
+        if (ex instanceof DuplicateEmailException e)
+            return handleDuplicate(e);
+        if (ex instanceof CustomerNotFoundException e)
+            return handleNotFound(e);
+        if (ex instanceof ProductNotFoundException e)
+            return handleProductNotFound(e);
+        if (ex instanceof CategoryNotFoundException e)
+            return handleCategoryNotFound(e);
+        if (ex instanceof DuplicateProductException e)
+            return handleDuplicateProduct(e);
+        return handleGeneric((Exception) ex);
+    }
 }

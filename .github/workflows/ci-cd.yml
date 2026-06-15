@@ -1,4 +1,60 @@
-name: Inventory Management System - CI/CD Pipeline
+name: Inventory Management System — CI/CD Pipeline
+
+# ============================================================
+# PROJECT DOCUMENTATION
+# ============================================================
+# Project      : Inventory Management System
+# Author       : Tashfi
+# Framework    : Spring Boot 4.0.6 (WebFlux / Reactive)
+# Language     : Java 21
+# Architecture : Hexagonal (Ports & Adapters)
+# Build Tool   : Gradle (Groovy DSL)
+#
+# ARCHITECTURE OVERVIEW
+# ─────────────────────
+# Each domain (customer, product) follows hexagonal structure:
+#
+#   adapter/in/      → HTTP handlers & routers (WebFlux functional)
+#   adapter/out/     → R2DBC repositories & persistence adapters
+#   application/
+#     port/in/       → Use case interfaces + DTOs
+#     port/out/      → Persistence port interfaces
+#     service/       → Business logic (implements use cases)
+#   domain/          → Pure domain models
+#
+# core/
+#   config/          → SecurityConfig, R2dbcConfig, WebConfig
+#   security/        → JwtAuthFilter
+#   util/            → JwtUtil, ValidationUtil, ImageUtil
+#   enums/           → Gender, CreatedBy, ProductStatus
+#   exception/       → Domain exceptions + GlobalExceptionHandler
+#   storage/         → StorageService, LocalStorageService, SupabaseStorageService
+#
+# PROFILES
+# ────────
+# local  → Local PostgreSQL, BCrypt + JwtUtil auth, local file storage
+# dev    → Supabase PostgreSQL, Supabase JWT auth, Supabase Storage
+#
+# THIRD PARTY SERVICES (dev profile)
+# ───────────────────────────────────
+# Supabase PostgreSQL : Main database via R2DBC (transaction pooler :6543)
+#                       Liquibase migrations via JDBC (session pooler :5432)
+# Supabase Storage    : Product image uploads with Thumbnailator compression
+# Supabase Auth       : JWT signing (Legacy JWT Secret, HS256)
+#
+# REQUIRED SECRETS (GitHub → Settings → Secrets → Actions)
+# ──────────────────────────────────────────────────────────
+# SPRING_R2DBC_USERNAME     → Supabase DB username
+# SPRING_R2DBC_PASSWORD     → Supabase DB password
+# SPRING_LIQUIBASE_USER     → Supabase Liquibase user
+# SPRING_LIQUIBASE_PASSWORD → Supabase Liquibase password
+# SUPABASE_URL              → https://xxxx.supabase.co
+# SUPABASE_ANON_KEY         → Supabase project anon key
+# SUPABASE_JWT_SECRET       → Supabase Legacy JWT secret
+# SUPABASE_STORAGE_BUCKET   → Storage bucket name
+# DOCKER_HUB_USERNAME       → Docker Hub username
+# DOCKER_HUB_TOKEN          → Docker Hub access token
+# ============================================================
 
 on:
   push:
@@ -9,7 +65,7 @@ on:
       - main
 
 env:
-  JAVA_VERSION: '25'
+  JAVA_VERSION: '21'
   IMAGE_NAME: inventory_management_system
 
 jobs:
@@ -46,34 +102,26 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
-      - name: STEP 4 - Document Gradle Setup
-        run: |
-          echo "============================================="
-          echo "              GRADLE SETUP                   "
-          echo "============================================="
-          echo "Caching Gradle dependencies for faster builds"
-          echo "build.gradle (Groovy DSL)"
-          echo "---------------------------------------------"
-
-      - name: STEP 5 - Cache Gradle Dependencies
+      - name: STEP 4 - Cache Gradle Dependencies
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('**/*.gradle') }}
-          restore-keys: gradle-
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
-      - name: STEP 6 - Grant execute permission to Gradle wrapper
+      - name: STEP 5 - Grant execute permission to Gradle wrapper
         run: chmod +x gradlew
 
-      - name: STEP 7 - Document of what build does
+      - name: STEP 6 - Document of what build does
         run: |
           echo "============================================="
           echo "              BUILDING THE PROJECT           "
           echo "============================================="
           echo ""
-          echo "Running ./gradlew build"
+          echo "Running: ./gradlew build -x test"
           echo ""
           echo "This compiles all source files under:"
           echo "    src/main/java/com/tashfi/InvertoryManagementSystem"
@@ -88,10 +136,10 @@ jobs:
           echo "    - lombok                         (boilerplate reduction)"
           echo "----------------------------------------------"
 
-      - name: STEP 8 - Build with gradle
+      - name: STEP 7 - Build with gradle
         run: ./gradlew build -x test
 
-      - name: STEP 9 - Document test setup
+      - name: STEP 8 - Document test setup
         run: |
           echo "=============================================="
           echo "                 RUNNING TESTS                "
@@ -101,10 +149,10 @@ jobs:
           echo "  Running: ./gradlew test"
           echo "----------------------------------------------"
 
-      - name: STEP 10 - Run tests
+      - name: STEP 9 - Run tests
         run: ./gradlew test
 
-      - name: STEP 11 - upload build artifact
+      - name: STEP 10 - upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
@@ -131,17 +179,26 @@ jobs:
           echo " Image name    :  ${{ env.IMAGE_NAME }}"
           echo " Registry      :  Docker Hub "
           echo " Tags          :  latest, ${{ github.sha }}
-          echo "" 
-          echo " The Docker image packages the Spring Boot fat jar"
-          echo " produced by ./gradlew build into a lightweight"
-          echo " Eclipse Tenurin JRE runtime image."
           echo ""
-          echo "IMPORTANT: The image contains no secrets."
-          echo "  All env vars (DB, Supabase, JWT) must be passed"
-          echo "  at container runtime via -e or docker-compose."
+          echo "  Packages the Spring Boot fat JAR into a"
+          echo "  lightweight Eclipse Temurin JRE image."
+          echo ""
+          echo "  NOTE: Image contains NO secrets."
+          echo "  Pass all env vars at container runtime:"
+          echo ""
+          echo "  docker run -p 8080:8080 \\"
+          echo "    -e SPRING_PROFILES_ACTIVE=dev \\"
+          echo "    -e SPRING.R2DBC.USERNAME=... \\"
+          echo "    -e SPRING.R2DBC.PASSWORD=... \\"
+          echo "    -e SUPABASE.URL=... \\"
+          echo "    -e SUPABASE.ANON-KEY=... \\"
+          echo "    -e SUPABASE.JWT.SECRET=... \\"
+          echo "    -e SUPABASE.STORAGE.BUCKET=... \\"
+          echo "    ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
           echo "=============================================="
 
-      - name: STEP 3 - Download Build Artifact
+
+      - name: STEP 3 - Download Build Artifact (JAR)
         uses: actions/download-artifact@v4
         with:
           name: app-jar
@@ -175,18 +232,8 @@ jobs:
       - name: STEP 7 - Confirm Push
         run: |
           echo "=============================================="
-          echo "  IMAGE PUSHED SUCCESSFULLY"
+          echo "         IMAGE PUSHED SUCCESSFULLY            "
           echo "=============================================="
+          echo "  Pull command:"
           echo "  docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
-          echo ""
-          echo "  To run locally with dev profile:"
-          echo "  docker run -p 8080:8080 \\"
-          echo "      -e SPRING_PROFILES_ACTIVE=dev \\"
-          echo "      -e SPRING.R2DBC.USERNAME=... \\"
-          echo "      -e SPRING.R2DBC.PASSWORD=... \\"
-          echo "      -e SUPABASE.URL=... \\"
-          echo "      -e SUPABASE.ANON-KEY=... \\"
-          echo "      -e SUPABASE.JWT.SECRET=... \\"
-          echo "      -e SUPABASE.STORAGE.BUCKET=... \\"
-          echo "      ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
           echo "----------------------------------------------"

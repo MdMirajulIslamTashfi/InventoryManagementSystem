@@ -49,11 +49,11 @@ public class CustomerService implements CustomerUseCase {
     @Override
     public Mono<CustomerRegistrationResponseDto> registerCustomer(CustomerRegistrationRequestDto request) {
         return ValidationUtil.validateName(request.getFullName())
-                .then(ValidationUtil.validateName(request.getLastName()))
-                .then(ValidationUtil.validateEmail(request.getEmail()))
-                .then(ValidationUtil.validateContact(request.getContact()))
-                .then(ValidationUtil.validateInput(request.getAddress()))
-                .then(customerPersistencePort.existsByEmail(request.getEmail()))
+                .flatMap(__ -> ValidationUtil.validateName(request.getLastName()))
+                .flatMap(__ -> ValidationUtil.validateEmail(request.getEmail()))
+                .flatMap(__ -> ValidationUtil.validateContact(request.getContact()))
+                .flatMap(__ -> ValidationUtil.validateInput(request.getAddress()))
+                .flatMap(__ -> customerPersistencePort.existsByEmail(request.getEmail()))
                 .flatMap(exists -> {
                     if (exists)
                         return Mono.error(new DuplicateEmailException("Email already registered: " + request.getEmail()));
@@ -82,7 +82,7 @@ public class CustomerService implements CustomerUseCase {
     @Override
     public Mono<CustomerLoginResponseDto> loginCustomer(CustomerLoginRequestDto request) {
         return ValidationUtil.validateEmail(request.getEmail())
-                .then(customerPersistencePort.findByEmail(request.getEmail()))
+                .flatMap(__ -> customerPersistencePort.findByEmail(request.getEmail()))
                 .switchIfEmpty(Mono.error(new CustomerNotFoundException("No account found with this email")))
                 .flatMap(customer -> {
                     if (!passwordEncoder.matches(request.getPassword(), customer.getPassword()))
