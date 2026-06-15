@@ -10,6 +10,15 @@ name: Inventory Management System — CI/CD Pipeline
 # Architecture : Hexagonal (Ports & Adapters)
 # Build Tool   : Gradle (Groovy DSL)
 #
+# PIPELINE STAGES
+# ───────────────
+# 1. build   → Compile source code (no tests)
+# 2. test    → Run JUnit 5 tests with 'test' Spring profile
+#              (uses in-memory H2 R2DBC — no real DB needed)
+# 3. package → Assemble the fat JAR from cached build outputs
+# 4. deploy  → Build & push Docker image to Docker Hub
+#              (main branch pushes only)
+#
 # ARCHITECTURE OVERVIEW
 # ─────────────────────
 # Each domain (customer, product) follows hexagonal structure:
@@ -34,24 +43,10 @@ name: Inventory Management System — CI/CD Pipeline
 # ────────
 # local  → Local PostgreSQL, BCrypt + JwtUtil auth, local file storage
 # dev    → Supabase PostgreSQL, Supabase JWT auth, Supabase Storage
-#
-# THIRD PARTY SERVICES (dev profile)
-# ───────────────────────────────────
-# Supabase PostgreSQL : Main database via R2DBC (transaction pooler :6543)
-#                       Liquibase migrations via JDBC (session pooler :5432)
-# Supabase Storage    : Product image uploads with Thumbnailator compression
-# Supabase Auth       : JWT signing (Legacy JWT Secret, HS256)
+# test   → In-memory H2 R2DBC, Liquibase disabled, dummy JWT secret
 #
 # REQUIRED SECRETS (GitHub → Settings → Secrets → Actions)
 # ──────────────────────────────────────────────────────────
-# SPRING_R2DBC_USERNAME     → Supabase DB username
-# SPRING_R2DBC_PASSWORD     → Supabase DB password
-# SPRING_LIQUIBASE_USER     → Supabase Liquibase user
-# SPRING_LIQUIBASE_PASSWORD → Supabase Liquibase password
-# SUPABASE_URL              → https://xxxx.supabase.co
-# SUPABASE_ANON_KEY         → Supabase project anon key
-# SUPABASE_JWT_SECRET       → Supabase Legacy JWT secret
-# SUPABASE_STORAGE_BUCKET   → Storage bucket name
 # DOCKER_HUB_USERNAME       → Docker Hub username
 # DOCKER_HUB_TOKEN          → Docker Hub access token
 # ============================================================
@@ -68,35 +63,40 @@ env:
   JAVA_VERSION: '21'
   IMAGE_NAME: inventory_management_system
 
+# ============================================================
+# STAGE 1 — BUILD
+# Compiles all source files. Tests are excluded here so that
+# compile errors are surfaced fast and separately from test
+# failures. Build outputs are cached for downstream jobs.
+# ============================================================
 jobs:
-  # JOB 1: BUILD AND TEST
   build:
-    name: Build & Test
+    name: "Stage 1 — Build"
     runs-on: ubuntu-latest
 
     steps:
       - name: STEP 1 - Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: STEP 2 - Document the Build Environment
+      - name: STEP 2 - Print Build Environment Info
         run: |
           echo "========================================="
           echo "INVENTORY MANAGEMENT SYSTEM - CI PIPELINE"
           echo "========================================="
           echo ""
-          echo " Framework    : Spring Boot 4.0.6 (Web)"
-          echo " JAVA         : ${{ env.JAVA_VERSION }}"
-          echo " Build tool   : Gradle (Groovy DSL)"
-          echo "  Branch     : ${{ github.ref_name }}"
-          echo "  Commit     : ${{ github.sha }}"
-          echo "  Triggered  : ${{ github.event_name }}"
+          echo "  Framework    : Spring Boot 4.0.6 (WebFlux / Reactive)"
+          echo "  Java         : ${{ env.JAVA_VERSION }}"
+          echo "  Build tool   : Gradle (Groovy DSL)"
+          echo "  Branch       : ${{ github.ref_name }}"
+          echo "  Commit       : ${{ github.sha }}"
+          echo "  Triggered by : ${{ github.event_name }}"
           echo ""
-          echo "  Architecture: Hexagonal (Ports & Adapters)"
-          echo "  Domains     : customer, product"
-          echo "  Profiles    : local (dev machine), dev (Supabase)"
-          echo "=============================================="
+          echo "  Architecture : Hexagonal (Ports & Adapters)"
+          echo "  Domains      : customer, product"
+          echo "  Profiles     : local | dev | test (CI)"
+          echo "========================================="
 
-      - name: STEP 3 - Set up Java ${{ env.JAVA_VERSION }}
+      - name: STEP 3 - Set Up Java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
@@ -112,78 +112,264 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      - name: STEP 5 - Grant execute permission to Gradle wrapper
+      - name: STEP 5 - Grant Execute Permission to Gradle Wrapper
         run: chmod +x gradlew
 
-      - name: STEP 6 - Document of what build does
+      - name: STEP 6 - Compile Source Code (skip tests)
         run: |
           echo "============================================="
-          echo "              BUILDING THE PROJECT           "
+          echo "              STAGE 1 — BUILD                "
           echo "============================================="
+          echo "  Running: ./gradlew classes testClasses -x test"
           echo ""
-          echo "Running: ./gradlew build -x test"
+          echo "  Compiles:"
+          echo "    src/main/java  → main classes"
+          echo "    src/test/java  → test classes (compile-check only)"
           echo ""
-          echo "This compiles all source files under:"
-          echo "    src/main/java/com/tashfi/InvertoryManagementSystem"
-          echo ""
-          echo "Key dependencies being compiled:"
-          echo "    - spring-boot-starter-webflux    (reactive HTTP)"
-          echo "    - spring-boot-starter-data-r2dbc (reactive DB)"
-          echo "    - spring-boot-starter-security   (JWT auth)"
-          echo "    - spring-boot-starter-liquibase  (DB migrations)"
-          echo "    - jjwt 0.12.6                    (JWT library)"
-          echo "    - thumbnailator                  (image compression)"
-          echo "    - lombok                         (boilerplate reduction)"
-          echo "----------------------------------------------"
+          echo "  Key dependencies:"
+          echo "    spring-boot-starter-webflux    (reactive HTTP)"
+          echo "    spring-boot-starter-data-r2dbc (reactive DB)"
+          echo "    spring-boot-starter-security   (JWT auth)"
+          echo "    spring-boot-starter-liquibase  (DB migrations)"
+          echo "    j jwt 0.12.6                    (JWT library)"
+          echo "    thumbnailator                  (image compression)"
+          echo "    lombok                         (boilerplate reduction)"
+          echo "---------------------------------------------"
+          ./gradlew classes testClasses -x test
 
-      - name: STEP 7 - Build with gradle
-        run: ./gradlew build -x test
+      - name: STEP 7 - Cache Build Outputs for Downstream Jobs
+        uses: actions/cache/save@v4
+        with:
+          path: build/
+          key: build-outputs-${{ github.sha }}
 
-      - name: STEP 8 - Document test setup
+  # ============================================================
+  # STAGE 2 — TEST
+  # Runs the full JUnit 5 test suite with spring.profiles.active
+  # set to 'test'. The 'test' profile uses:
+  #   - r2dbc:h2:mem (in-memory, no real PostgreSQL needed)
+  #   - spring.liquibase.enabled=false
+  #   - dummy JWT secret (resolves all ${...} placeholders)
+  # This is why the context previously failed: the 'local' profile
+  # expected JWT.SECRET from .env.local, which doesn't exist in CI.
+  # ============================================================
+  test:
+    name: "Stage 2 — Test"
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: STEP 1 - Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: STEP 2 - Set Up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: STEP 3 - Restore Gradle Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: STEP 4 - Restore Build Outputs Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/
+          key: build-outputs-${{ github.sha }}
+
+      - name: STEP 5 - Grant Execute Permission to Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: STEP 6 - Print Test Configuration
         run: |
-          echo "=============================================="
-          echo "                 RUNNING TESTS                "
-          echo "=============================================="
-          echo "  Test framework : JUnit 5"
-          echo "  Extras         : reactor-test, spring-security-test"
-          echo "  Running: ./gradlew test"
-          echo "----------------------------------------------"
+          echo "============================================="
+          echo "              STAGE 2 — TEST                 "
+          echo "============================================="
+          echo "  Test framework  : JUnit 5"
+          echo "  Spring profile  : test"
+          echo "  DB (test)       : r2dbc:h2:mem (in-memory)"
+          echo "  Liquibase       : disabled in test profile"
+          echo "  JWT secret      : dummy stub (placeholder resolved)"
+          echo ""
+          echo "  WHY 'test' PROFILE?"
+          echo "  The 'local' profile reads JWT.SECRET from .env.local"
+          echo "  which does not exist in CI — causing the"
+          echo "  PlaceholderResolutionException you saw in the logs."
+          echo "  The 'test' profile provides all values inline."
+          echo ""
+          echo "  Extras: reactor-test, spring-security-test"
+          echo "  Running: ./gradlew test -Dspring.profiles.active=test"
+          echo "---------------------------------------------"
 
-      - name: STEP 9 - Run tests
-        run: ./gradlew test
+      - name: STEP 7 - Run Tests
+        run: ./gradlew test -Dspring.profiles.active=test
 
-      - name: STEP 10 - upload build artifact
+      - name: STEP 8 - Upload Test Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: build/reports/tests/test/
+          retention-days: 7
+
+    # ============================================================
+    # STAGE 3 — ANALYZE (SonarQube)
+    # Runs static analysis on compiled code + test coverage data.
+    # The Quality Gate blocks the pipeline if thresholds fail.
+    # ============================================================
+    analyze:
+      name: "Stage 3 — Analyze (SonarQube)"
+      runs-on: ubuntu-latest
+      needs: test
+
+      steps:
+        - name: Checkout Source Code
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0   # SonarQube needs full history for blame info
+
+        - name: Set Up Java 21
+          uses: actions/setup-java@v4
+          with:
+            java-version: '21'
+            distribution: 'temurin'
+
+        - name: Restore Gradle Cache
+          uses: actions/cache/restore@v4
+          with:
+            path: |
+              ~/.gradle/caches
+              ~/.gradle/wrapper
+            key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle', '**/gradle-wrapper.properties') }}
+
+        - name: Grant Execute Permission to Gradle Wrapper
+          run: chmod +x gradlew
+
+        - name: Run Tests + Generate Coverage Report
+          run: ./gradlew test jacocoTestReport -Dspring.profiles.active=test
+
+        - name: SonarCloud Analysis
+          uses: SonarSource/sonarqube-scan-action@v5
+          env:
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # for PR decoration
+
+        - name: SonarQube Quality Gate Check
+          uses: SonarSource/sonarqube-quality-gate-action@v1
+          timeout-minutes: 5
+          env:
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ============================================================
+  # STAGE 4 — PACKAGE
+  # Assembles the Spring Boot fat JAR from compiled classes.
+  # We skip tests here (already passed in Stage 2) and upload
+  # the JAR as an artifact for the deployment stage.
+  # ============================================================
+  package:
+    name: "Stage 4 — Package"
+    runs-on: ubuntu-latest
+    needs: analyze
+
+    steps:
+      - name: STEP 1 - Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: STEP 2 - Set Up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: STEP 3 - Restore Gradle Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: STEP 4 - Grant Execute Permission to Gradle Wrapper
+        run: chmod +x gradlew
+
+      - name: STEP 5 - Print Package Info
+        run: |
+          echo "============================================="
+          echo "              STAGE 3 — PACKAGE              "
+          echo "============================================="
+          echo "  Running: ./gradlew bootJar -x test"
+          echo ""
+          echo "  Produces a single self-contained fat JAR:"
+          echo "    build/libs/InventoryManagementSystem-*.jar"
+          echo ""
+          echo "  The JAR bundles all dependencies and is"
+          echo "  ready to be copied into the Docker image."
+          echo "---------------------------------------------"
+
+      - name: STEP 6 - Assemble Fat JAR
+        run: ./gradlew bootJar -x test
+
+      - name: STEP 7 - Verify JAR Was Produced
+        run: |
+          echo "JAR files produced:"
+          ls -lh build/libs/*.jar
+          echo ""
+          echo "SHA256 checksums:"
+          sha256sum build/libs/*.jar
+
+      - name: STEP 8 - Upload JAR Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
           path: build/libs/*.jar
           retention-days: 1
 
-  # JOB 2: DOCKER BUILD AND PUSH
-  docker:
-    name: Docker Build & Push
+  # ============================================================
+  # STAGE 5 — DEPLOY
+  # Builds the Docker image using the fat JAR from Stage 3,
+  # then pushes it to Docker Hub with two tags:
+  #   :latest   → always points to the newest main build
+  #   :<sha>    → immutable tag for rollback
+  #
+  # Only runs on direct pushes to main (not PRs).
+  #
+  # Required secrets:
+  #   DOCKER_HUB_USERNAME
+  #   DOCKER_HUB_TOKEN
+  # ============================================================
+  deploy:
+    name: "Stage 5 — Deploy (Docker Hub)"
     runs-on: ubuntu-latest
-    needs: build
+    needs: package
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - name: STEP 1 - Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: STEP 2 - Document Docker Setup
+      - name: STEP 2 - Print Deploy Info
         run: |
-          echo "==================================="
-          echo "         DOCKET IMAGE BUILD        "
-          echo "==================================="
+          echo "============================================="
+          echo "           STAGE 4 — DEPLOY                  "
+          echo "============================================="
           echo ""
-          echo " Image name    :  ${{ env.IMAGE_NAME }}"
-          echo " Registry      :  Docker Hub "
-          echo " Tags          :  latest, ${{ github.sha }}
+          echo "  Image name : ${{ env.IMAGE_NAME }}"
+          echo "  Registry   : Docker Hub"
+          echo "  Tags       : latest, ${{ github.sha }}"
           echo ""
           echo "  Packages the Spring Boot fat JAR into a"
-          echo "  lightweight Eclipse Temurin JRE image."
+          echo "  lightweight Eclipse Temurin JRE 25 Alpine image."
           echo ""
-          echo "  NOTE: Image contains NO secrets."
+          echo "  NOTE: The image contains NO secrets."
           echo "  Pass all env vars at container runtime:"
           echo ""
           echo "  docker run -p 8080:8080 \\"
@@ -195,33 +381,43 @@ jobs:
           echo "    -e SUPABASE.JWT.SECRET=... \\"
           echo "    -e SUPABASE.STORAGE.BUCKET=... \\"
           echo "    ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
-          echo "=============================================="
+          echo "============================================="
 
-
-      - name: STEP 3 - Download Build Artifact (JAR)
+      - name: STEP 3 - Download JAR Artifact from Package Stage
         uses: actions/download-artifact@v4
         with:
           name: app-jar
           path: build/libs/
 
-      - name: STEP 4 - Log in to Docker Hub
-        uses: docker/login-activity@v3
+      - name: STEP 4 - Verify JAR Is Present
+        run: |
+          echo "JAR ready for Docker build:"
+          ls -lh build/libs/*.jar
+
+      - name: STEP 5 - Log In to Docker Hub
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: STEP 5 - Document image tagging strategy
-        run: |
-          echo "=============================================="
-          echo "              IMAGE TAGGING                   "
-          echo "=============================================="
-          echo "  :latest → always points to latest main build"
-          echo "  :sha    → ${{ github.sha }}"
-          echo "            pinned tag for rollback if needed"
-          echo "----------------------------------------------"
+      - name: STEP 6 - Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: STEP 6 - Build and Push Docker Image
-        uses: docker/build-push-action@v5
+      - name: STEP 7 - Print Image Tagging Strategy
+        run: |
+          echo "============================================="
+          echo "           IMAGE TAGGING STRATEGY            "
+          echo "============================================="
+          echo "  :latest → always points to newest main build"
+          echo "  :sha    → ${{ github.sha }}"
+          echo "            pinned tag; use for rollback"
+          echo ""
+          echo "  To roll back to a previous build:"
+          echo "  docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:<sha>"
+          echo "---------------------------------------------"
+
+      - name: STEP 8 - Build and Push Docker Image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -229,11 +425,11 @@ jobs:
             ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
             ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      - name: STEP 7 - Confirm Push
+      - name: STEP 9 - Confirm Successful Push
         run: |
-          echo "=============================================="
-          echo "         IMAGE PUSHED SUCCESSFULLY            "
-          echo "=============================================="
+          echo "============================================="
+          echo "         IMAGE PUSHED SUCCESSFULLY           "
+          echo "============================================="
           echo "  Pull command:"
           echo "  docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
-          echo "----------------------------------------------"
+          echo "---------------------------------------------"

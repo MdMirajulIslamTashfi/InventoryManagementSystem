@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.0.6'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
 }
 
 group = 'com.tashfi'
@@ -68,6 +69,15 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+jacocoTestReport {
+	dependsOn test
+	reports {
+		xml.required = true   // SonarQube reads XML
+	}
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
+	systemProperty 'spring.profiles.active', 'test'
+	finalizedBy jacocoTestReport  // auto-generate report after tests
 }
