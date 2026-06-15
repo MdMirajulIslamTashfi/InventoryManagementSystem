@@ -28,15 +28,22 @@ public class ImageUtil {
 
     // target: output is ~25% of original file size
     // achieved by scaling dimensions to 70% + quality 0.6
-    // both together reliably hit ~25% of original size
     private static final double DIMENSION_SCALE = 0.70;
     private static final double OUTPUT_QUALITY   = 0.60;
-    private static final long   MAX_BYTES        = 1024 * 1024; // 1MB hard limit
+    private static final long   MAX_BYTES        = 1024 * 1024; // 1 MB hard limit
 
-    @Value("${app.upload.path}")
-    private String uploadPath;
+    /**
+     * Validate, compress and save an image to the given directory.
+     *
+     * @param file              the uploaded multipart file
+     * @param productIdentifier a stable slug used in the file name
+     * @param uploadDir         the absolute or relative directory to write into
+     *                          (supplied by the calling storage service)
+     * @return a public URL path fragment, e.g. {@code /uploads/products/<filename>}
+     */
+    public String saveImage(MultipartFile file, String productIdentifier, String uploadDir)
+            throws IOException {
 
-    public String saveImage(MultipartFile file, String productIdentifier) throws IOException {
         String contentType = file.getContentType() != null ? file.getContentType() : "";
 
         if (!ALLOWED_TYPES.contains(contentType))
@@ -50,14 +57,10 @@ public class ImageUtil {
                 : "image";
 
         String extension  = getExtension(originalFilename);
-        String timestamp  = LocalDateTime.now().format(FORMATTER);
-        String identifier = sanitize(productIdentifier);
-        String fileName   = identifier + "_" + stripExtension(originalFilename)
-                + "_" + timestamp + "." + extension;
-
+        String fileName   = buildFileName(originalFilename, productIdentifier);
         byte[] compressed = compressBytes(file.getBytes(), extension);
 
-        Path dirPath = Paths.get(uploadPath);
+        Path dirPath = Paths.get(uploadDir);
         Files.createDirectories(dirPath);
         Files.write(dirPath.resolve(fileName), compressed);
 
@@ -77,12 +80,11 @@ public class ImageUtil {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         Thumbnails.of(new ByteArrayInputStream(bytes))
-                .scale(DIMENSION_SCALE)      // shrink dimensions to 70%
+                .scale(DIMENSION_SCALE)
                 .outputFormat(format)
-                .outputQuality(OUTPUT_QUALITY) // 60% quality on top of dimension reduction
+                .outputQuality(OUTPUT_QUALITY)
                 .toOutputStream(out);
 
-        // always return compressed — never fall back to original
         return out.toByteArray();
     }
 

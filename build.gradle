@@ -60,6 +60,9 @@ dependencies {
 	// dev tools
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
+	// H2 in-memory database for test profile (R2DBC)
+	testRuntimeOnly 'io.r2dbc:r2dbc-h2'
+
 	// tests
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'io.projectreactor:reactor-test'
