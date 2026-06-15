@@ -204,7 +204,7 @@ jobs:
   test:
     name: "Stage 3 — Test"
     runs-on: ubuntu-latest
-    needs: analyze
+    needs: build
 
     steps:
       - name: STEP 1 - Checkout Source Code
