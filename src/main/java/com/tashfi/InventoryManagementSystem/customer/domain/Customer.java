@@ -17,7 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor
 public class Customer {
     private UUID id;
-    private String fullName;
+    private String firstName;
     private String lastName;
     private Gender gender;
     private LocalDate dateOfBirth;

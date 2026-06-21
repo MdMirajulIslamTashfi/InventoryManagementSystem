@@ -54,7 +54,7 @@ class CustomerServiceTest {
         );
 
         validRegistrationRequest = CustomerRegistrationRequestDto.builder()
-                .fullName("John")
+                .firstName("John")
                 .lastName("Doe")
                 .gender(Gender.MALE)
                 .dateOfBirth(LocalDate.of(1995, 3, 24))
@@ -71,7 +71,7 @@ class CustomerServiceTest {
 
         savedCustomer = Customer.builder()
                 .id(UUID.randomUUID())
-                .fullName("John")
+                .firstName("John")
                 .lastName("Doe")
                 .gender(Gender.MALE)
                 .dateOfBirth(LocalDate.of(1995, 3, 24))
@@ -91,7 +91,7 @@ class CustomerServiceTest {
         void returnsAllCustomers() {
             Customer customer2 = Customer.builder()
                     .id(UUID.randomUUID())
-                    .fullName("Jane")
+                    .firstName("Jane")
                     .lastName("Smith")
                     .email("jane@gmail.com")
                     .build();
@@ -208,9 +208,9 @@ class CustomerServiceTest {
     class RegisterCustomerNameValidation {
 
         @Test
-        @DisplayName("throws ValidationException for full name with numbers")
-        void throwsOnFullNameWithNumbers() {
-            validRegistrationRequest.setFullName("John123");
+        @DisplayName("throws ValidationException for first name with numbers")
+        void throwsOnFirstNameWithNumbers() {
+            validRegistrationRequest.setFirstName("John123");
             StepVerifier.create(service.registerCustomer(validRegistrationRequest))
                     .expectErrorMatches(ex -> ex instanceof ValidationException &&
                             ex.getMessage().equals("Name format is invalid"))
@@ -218,18 +218,18 @@ class CustomerServiceTest {
         }
 
         @Test
-        @DisplayName("throws ValidationException for full name with special characters")
-        void throwsOnFullNameWithSpecialChars() {
-            validRegistrationRequest.setFullName("John@Doe");
+        @DisplayName("throws ValidationException for first name with special characters")
+        void throwsOnFirstNameWithSpecialChars() {
+            validRegistrationRequest.setFirstName("John@Doe");
             StepVerifier.create(service.registerCustomer(validRegistrationRequest))
                     .expectErrorMatches(ex -> ex instanceof ValidationException)
                     .verify();
         }
 
         @Test
-        @DisplayName("throws ValidationException for null full name")
-        void throwsOnNullFullName() {
-            validRegistrationRequest.setFullName(null);
+        @DisplayName("throws ValidationException for null first name")
+        void throwsOnNullFirstName() {
+            validRegistrationRequest.setFirstName(null);
             StepVerifier.create(service.registerCustomer(validRegistrationRequest))
                     .expectErrorMatches(ex -> ex instanceof ValidationException)
                     .verify();
@@ -246,6 +246,15 @@ class CustomerServiceTest {
         }
 
         @Test
+        @DisplayName("throws ValidationException for Last name with special characters")
+        void throwsOnLastNameWithSpecialChars() {
+            validRegistrationRequest.setLastName("@Doe");
+            StepVerifier.create(service.registerCustomer(validRegistrationRequest))
+                    .expectErrorMatches(ex -> ex instanceof ValidationException)
+                    .verify();
+        }
+
+        @Test
         @DisplayName("throws ValidationException for null last name")
         void throwsOnNullLastName() {
             validRegistrationRequest.setLastName(null);
@@ -257,7 +266,7 @@ class CustomerServiceTest {
         @Test
         @DisplayName("accepts name with spaces")
         void acceptsNameWithSpaces() {
-            validRegistrationRequest.setFullName("Mary Ann");
+            validRegistrationRequest.setFirstName("Mary Ann");
             when(customerPersistencePort.existsByEmail(anyString())).thenReturn(Mono.just(false));
             when(passwordEncoder.encode(anyString())).thenReturn("hashed");
             when(customerPersistencePort.saveCustomer(any())).thenReturn(Mono.just(savedCustomer));

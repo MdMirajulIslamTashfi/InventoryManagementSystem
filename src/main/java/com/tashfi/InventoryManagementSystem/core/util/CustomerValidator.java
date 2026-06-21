@@ -17,7 +17,7 @@ public class CustomerValidator {
     public static List<String> validate(CustomerRegistrationRequestDto dto) {
         List<String> errors = new ArrayList<>();
 
-        if (isBlank(dto.getFullName()))
+        if (isBlank(dto.getFirstName()))
             errors.add("Full name is required");
 
         if (isBlank(dto.getLastName()))

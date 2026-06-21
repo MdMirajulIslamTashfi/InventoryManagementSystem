@@ -24,8 +24,8 @@ public class CustomerEntity {
     @Id
     private UUID id;
 
-    @Column("full_name")
-    private String fullName;
+    @Column("first_name")
+    private String firstName;
 
     @Column("last_name")
     private String lastName;

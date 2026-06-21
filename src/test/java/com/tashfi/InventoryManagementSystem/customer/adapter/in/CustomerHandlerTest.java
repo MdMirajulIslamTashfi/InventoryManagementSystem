@@ -55,7 +55,7 @@ public class CustomerHandlerTest {
     private Customer buildCustomer() {
         return Customer.builder()
                 .id(UUID.randomUUID())
-                .fullName("John")
+                .firstName("John")
                 .lastName("Doe")
                 .gender(Gender.MALE)
                 .dateOfBirth(LocalDate.of(1995, 3, 24))
@@ -67,7 +67,7 @@ public class CustomerHandlerTest {
 
     private CustomerRegistrationRequestDto buildRegistrationRequest() {
         return CustomerRegistrationRequestDto.builder()
-                .fullName("John")
+                .firstName("John")
                 .lastName("Doe")
                 .gender(Gender.MALE)
                 .dateOfBirth(LocalDate.of(1995, 3, 24))

@@ -48,7 +48,7 @@ public class CustomerService implements CustomerUseCase {
 
     @Override
     public Mono<CustomerRegistrationResponseDto> registerCustomer(CustomerRegistrationRequestDto request) {
-        return ValidationUtil.validateName(request.getFullName())
+        return ValidationUtil.validateName(request.getFirstName())
                 .flatMap(__ -> ValidationUtil.validateName(request.getLastName()))
                 .flatMap(__ -> ValidationUtil.validateEmail(request.getEmail()))
                 .flatMap(__ -> ValidationUtil.validateContact(request.getContact()))
@@ -59,7 +59,7 @@ public class CustomerService implements CustomerUseCase {
                         return Mono.error(new DuplicateEmailException("Email already registered: " + request.getEmail()));
 
                     Customer customer = Customer.builder()
-                            .fullName(request.getFullName())
+                            .firstName(request.getFirstName())
                             .lastName(request.getLastName())
                             .gender(request.getGender())
                             .dateOfBirth(request.getDateOfBirth())

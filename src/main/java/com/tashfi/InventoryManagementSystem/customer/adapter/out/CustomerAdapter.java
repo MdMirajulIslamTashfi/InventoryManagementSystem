@@ -40,7 +40,7 @@ public class CustomerAdapter implements CustomerPersistencePort {
     private Customer toDomain(CustomerEntity entity) {
         return Customer.builder()
                 .id(entity.getId())
-                .fullName(entity.getFullName())
+                .firstName(entity.getFirstName())
                 .lastName(entity.getLastName())
                 .gender(entity.getGender())
                 .dateOfBirth(entity.getDateOfBirth())
@@ -54,7 +54,7 @@ public class CustomerAdapter implements CustomerPersistencePort {
     private CustomerEntity toEntity(Customer customer) {
         return CustomerEntity.builder()
                 .id(customer.getId())
-                .fullName(customer.getFullName())
+                .firstName(customer.getFirstName())
                 .lastName(customer.getLastName())
                 .gender(customer.getGender())
                 .dateOfBirth(customer.getDateOfBirth())
