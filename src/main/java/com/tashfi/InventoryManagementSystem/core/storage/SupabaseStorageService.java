@@ -45,7 +45,7 @@ public class SupabaseStorageService implements StorageService {
     @Override
     public Mono<List<String>> uploadImages(List<MultipartFile> files, String productIdentifier) {
         return Flux.fromIterable(files)
-                .filter(file -> file != null && !file.isEmpty())
+                .filter(file -> !file.isEmpty())
                 .flatMapSequential(file -> uploadSingle(file, productIdentifier))
                 .collectList();
     }
@@ -81,5 +81,32 @@ public class SupabaseStorageService implements StorageService {
                                         supabaseUrl + "/storage/v1/object/public/"
                                                 + bucket + "/" + fileName)
                 );
+    }
+
+    @Override
+    public Mono<Void> deleteImage(String imageUrl) {
+        String prefix = supabaseUrl + "/storage/v1/object/public/" + bucket + "/";
+        if (imageUrl == null || !imageUrl.startsWith(prefix))
+            return Mono.empty(); // not a URL we recognize — nothing to do
+
+        String fileName = imageUrl.substring(prefix.length());
+
+        return webClient.method(org.springframework.http.HttpMethod.DELETE)
+                .uri("/object/" + bucket)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(java.util.Map.of("prefixes", List.of(fileName)))
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(), response ->
+                        response.bodyToMono(String.class)
+                                .flatMap(body -> Mono.error(
+                                        new RuntimeException("Supabase delete failed: " + body)))
+                )
+                .bodyToMono(String.class)
+                .then()
+                .onErrorResume(e -> {
+                    // log and swallow — a failed cleanup shouldn't fail the user's update/delete request
+                    System.err.println("Failed to delete old image from Supabase: " + e.getMessage());
+                    return Mono.empty();
+                });
     }
 }

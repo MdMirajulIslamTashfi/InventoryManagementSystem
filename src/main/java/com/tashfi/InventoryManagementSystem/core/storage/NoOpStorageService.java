@@ -15,4 +15,9 @@ public class NoOpStorageService implements StorageService {
     public Mono<List<String>> uploadImages(List<MultipartFile> files, String productIdentifier) {
         return Mono.just(List.of());
     }
+
+    @Override
+    public Mono<Void> deleteImage(String imageUrl) {
+        return Mono.empty();
+    }
 }

@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -18,7 +19,7 @@ public class Product {
     private UUID id;
     private UUID categoryId;
     private String categoryName;
-    private String images;
+    private List<ProductImage> images;
     private String name;
     private String description;
     private Integer quantity;

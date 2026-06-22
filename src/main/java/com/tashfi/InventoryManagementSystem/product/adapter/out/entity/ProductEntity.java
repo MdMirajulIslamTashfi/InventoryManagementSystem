@@ -30,14 +30,11 @@ public class ProductEntity {
     @Transient
     private String categoryName;
 
-    @Column("images")
-    private String images;
-
     private String name;
     private String description;
     private Integer quantity;
     private BigDecimal price;
-    private String sku;
+    private String sku; // Stock Keeping Unit
     private ProductStatus status;
 
     @Column("created_at")

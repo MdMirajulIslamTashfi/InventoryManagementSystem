@@ -17,11 +17,11 @@ public class ProductRouter {
     public RouterFunction<ServerResponse> productRoutes(ProductHandler productHandler) {
         return RouterFunctions.route()
                 .nest(RequestPredicates.accept(MediaType.APPLICATION_JSON), builder -> builder
-                        .GET(RouterName.PRODUCT_BASE_URL, productHandler::getAllProducts)
-                        .GET(RouterName.PRODUCT_SEARCH_BY_NAME_URL, productHandler::searchProducts)
-                        .POST(RouterName.PRODUCT_ADD_URL, productHandler::createProduct)
-                        .PUT(RouterName.PRODUCT_UPDATE_URL, productHandler::updateProduct)
-                        .DELETE(RouterName.PRODUCT_DELETE_URL, productHandler::deleteProduct)
+                        .GET(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL), productHandler::getAllProducts)
+                        .GET(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.PRODUCT_SEARCH_URL).concat(RouterName.NAME), productHandler::searchProducts)
+                        .POST(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.PRODUCT_ADD_URL), productHandler::createProduct)
+                        .PUT(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.PRODUCT_UPDATE_URL).concat(RouterName.NAME), productHandler::updateProduct)
+                        .DELETE(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.PRODUCT_DELETE_URL).concat(RouterName.NAME), productHandler::deleteProduct)
                 ).build();
     }
 }

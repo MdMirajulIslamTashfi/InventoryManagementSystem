@@ -17,11 +17,11 @@ public class CategoryRouter {
     public RouterFunction<ServerResponse> categoryRoutes(CategoryHandler categoryHandler) {
         return RouterFunctions.route()
                 .nest(RequestPredicates.accept(MediaType.APPLICATION_JSON), builder -> builder
-                        .GET(RouterName.CATEGORY_BASE_URL, categoryHandler::getAllCategories)
-                        .GET(RouterName.CATEGORY_SEARCH_BY_NAME_URL, categoryHandler::searchCategoryByName)
-                        .POST(RouterName.CATEGORY_ADD_URL, categoryHandler::createCategory)
-                        .PUT(RouterName.CATEGORY_UPDATE_URL, categoryHandler::updateCategory)
-                        .DELETE(RouterName.CATEGORY_DELETE_URL, categoryHandler::deleteCategory)
+                        .GET(RouterName.BASE_URL.concat(RouterName.CATEGORY_BASE_URL), categoryHandler::getAllCategories)
+                        .GET(RouterName.BASE_URL.concat(RouterName.CATEGORY_BASE_URL).concat(RouterName.CATEGORY_SEARCH_URL).concat(RouterName.NAME), categoryHandler::searchCategoryByName)
+                        .POST(RouterName.BASE_URL.concat(RouterName.CATEGORY_BASE_URL).concat(RouterName.CATEGORY_ADD_URL), categoryHandler::createCategory)
+                        .PUT(RouterName.BASE_URL.concat(RouterName.CATEGORY_BASE_URL).concat(RouterName.CATEGORY_UPDATE_URL).concat(RouterName.NAME), categoryHandler::updateCategory)
+                        .DELETE(RouterName.BASE_URL.concat(RouterName.CATEGORY_BASE_URL).concat(RouterName.CATEGORY_DELETE_URL).concat(RouterName.NAME), categoryHandler::deleteCategory)
                 ).build();
     }
 }

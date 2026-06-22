@@ -48,3 +48,17 @@ databaseChangeLog:
         - sqlFile:
             path: db-migration/007-rename-customer-fullname-to-firstname.sql
             relativeToChangelogFile: false
+  - changeSet:
+      id: 008-create-product-image-table
+      author: tashfi
+      changes:
+        - sqlFile:
+            path: db-migration/008-create-product-image-table.sql
+            relativeToChangelogFile: false
+  - changeSet:
+      id: 009-drop-product-images-column
+      author: tashfi
+      changes:
+        - sqlFile:
+            path: db-migration/009-drop-product-images-column.sql
+            relativeToChangelogFile: false

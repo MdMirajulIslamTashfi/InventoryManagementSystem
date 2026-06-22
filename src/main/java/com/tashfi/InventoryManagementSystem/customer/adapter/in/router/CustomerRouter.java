@@ -17,9 +17,9 @@ public class CustomerRouter {
     public RouterFunction<ServerResponse> customerRoutes(CustomerHandler customerHandler) {
         return RouterFunctions.route()
                 .nest(RequestPredicates.accept(MediaType.APPLICATION_JSON), builder -> builder
-                        .GET(RouterName.CUSTOMER_BASE_URL, customerHandler::getAllCustomers)
-                        .POST(RouterName.CUSTOMER_REGISTER_URL, customerHandler::registerCustomer)
-                        .POST(RouterName.CUSTOMER_LOGIN_URL, customerHandler::loginCustomer)
+                        .GET(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL), customerHandler::getAllCustomers)
+                        .POST(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_REGISTER_URL), customerHandler::registerCustomer)
+                        .POST(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_LOGIN_URL), customerHandler::loginCustomer)
                 ).build();
     }
 }
