@@ -95,7 +95,7 @@ public class CustomerHandlerTest {
             when(customerUseCase.findAllCustomers()).thenReturn(Mono.just(response));
 
             webTestClient.get()
-                    .uri(RouterName.CUSTOMER_BASE_URL)
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL))
                     .accept(MediaType.APPLICATION_JSON)
                     .exchange()
                     .expectStatus().isOk()
@@ -117,7 +117,7 @@ public class CustomerHandlerTest {
             when(customerUseCase.findAllCustomers()).thenReturn(Mono.just(response));
 
             webTestClient.get()
-                    .uri(RouterName.CUSTOMER_BASE_URL)
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL))
                     .accept(MediaType.APPLICATION_JSON)
                     .exchange()
                     .expectStatus().isOk()
@@ -144,7 +144,7 @@ public class CustomerHandlerTest {
                     .thenReturn(Mono.just(response));
 
             webTestClient.post()
-                    .uri(RouterName.CUSTOMER_REGISTER_URL)
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_REGISTER_URL))
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(buildRegistrationRequest())
                     .exchange()
@@ -161,7 +161,7 @@ public class CustomerHandlerTest {
                     .thenReturn(Mono.error(new ValidationException("Email format is invalid")));
 
             webTestClient.post()
-                    .uri(RouterName.CUSTOMER_REGISTER_URL)
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_REGISTER_URL))
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(buildRegistrationRequest())
                     .exchange()
@@ -178,7 +178,7 @@ public class CustomerHandlerTest {
                     .thenReturn(Mono.error(new DuplicateEmailException("Email already registered: john@gmail.com")));
 
             webTestClient.post()
-                    .uri(RouterName.CUSTOMER_REGISTER_URL)
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_REGISTER_URL))
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(buildRegistrationRequest())
                     .exchange()
@@ -209,7 +209,7 @@ public class CustomerHandlerTest {
                     .thenReturn(Mono.just(response));
 
             webTestClient.post()
-                    .uri(RouterName.CUSTOMER_LOGIN_URL)
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_LOGIN_URL))
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(CustomerLoginRequestDto.builder()
                             .email("john@gmail.com")
@@ -231,7 +231,7 @@ public class CustomerHandlerTest {
                     .thenReturn(Mono.error(new ValidationException("Email format is invalid")));
 
             webTestClient.post()
-                    .uri(RouterName.CUSTOMER_LOGIN_URL)
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_LOGIN_URL))
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(CustomerLoginRequestDto.builder()
                             .email("invalid")
@@ -251,7 +251,7 @@ public class CustomerHandlerTest {
                     .thenReturn(Mono.error(new CustomerNotFoundException("No account found with this email")));
 
             webTestClient.post()
-                    .uri(RouterName.CUSTOMER_LOGIN_URL)
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_LOGIN_URL))
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(CustomerLoginRequestDto.builder()
                             .email("john@gmail.com")
@@ -271,7 +271,7 @@ public class CustomerHandlerTest {
                     .thenReturn(Mono.error(new ValidationException("Invalid password")));
 
             webTestClient.post()
-                    .uri(RouterName.CUSTOMER_LOGIN_URL)
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_LOGIN_URL))
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(CustomerLoginRequestDto.builder()
                             .email("john@gmail.com")
