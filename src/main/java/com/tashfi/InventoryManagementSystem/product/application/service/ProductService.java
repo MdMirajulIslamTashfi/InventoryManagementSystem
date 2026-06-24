@@ -1,5 +1,6 @@
 package com.tashfi.InventoryManagementSystem.product.application.service;
 
+import com.tashfi.InventoryManagementSystem.content.application.port.out.ContentServiceClientPort;
 import com.tashfi.InventoryManagementSystem.core.enums.ProductStatus;
 import com.tashfi.InventoryManagementSystem.core.exception.CategoryNotFoundException;
 import com.tashfi.InventoryManagementSystem.core.exception.DuplicateProductException;
@@ -17,6 +18,7 @@ import com.tashfi.InventoryManagementSystem.product.application.port.out.Product
 import com.tashfi.InventoryManagementSystem.product.domain.Product;
 import com.tashfi.InventoryManagementSystem.product.domain.ProductCategory;
 import com.tashfi.InventoryManagementSystem.product.domain.ProductImage;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
@@ -33,15 +35,22 @@ public class ProductService implements ProductUseCase {
     private final CategoryPersistencePort categoryPersistencePort;
     private final ProductImagePersistencePort productImagePersistencePort;
     private final StorageService storageService;
+    // Optional — only present when the "content" profile is active.
+    // Using ObjectProvider keeps ProductService startable on dev/local alone,
+    // with no CMS bean and no CMS calls, while still letting us reach CMS
+    // for cleanup when "content" is active.
+    private final ObjectProvider<ContentServiceClientPort> contentServiceClientPort;
 
     public ProductService(ProductPersistencePort productPersistencePort,
                           CategoryPersistencePort categoryPersistencePort,
                           ProductImagePersistencePort productImagePersistencePort,
-                          StorageService storageService) {
+                          StorageService storageService,
+                          ObjectProvider<ContentServiceClientPort> contentServiceClientPort) {
         this.productPersistencePort = productPersistencePort;
         this.categoryPersistencePort = categoryPersistencePort;
         this.productImagePersistencePort = productImagePersistencePort;
         this.storageService = storageService;
+        this.contentServiceClientPort = contentServiceClientPort;
     }
 
     @Override
@@ -202,8 +211,22 @@ public class ProductService implements ProductUseCase {
     public Mono<Void> deleteProduct(String name) {
         return productPersistencePort.findByName(name)
                 .switchIfEmpty(Mono.error(new ProductNotFoundException("Product not found: " + name)))
-                .flatMap(p -> productPersistencePort.deleteByName(name));
+                .flatMap(p -> productPersistencePort.deleteByName(name)
+                        .then(cleanUpContentImages(p.getId())));
         // product_image rows are deleted automatically by ON DELETE CASCADE
+    }
+
+    // Best-effort: if the "content" profile is active, tell CMS to drop this
+    // product's images too. If it's not active, or CMS is unreachable, we
+    // still want the IMS-side delete to have succeeded — never fail the
+    // product delete because of a CMS hiccup.
+    private Mono<Void> cleanUpContentImages(UUID productId) {
+        ContentServiceClientPort client = contentServiceClientPort.getIfAvailable();
+        if (client == null)
+            return Mono.empty();
+
+        return client.deleteAllByProductId(productId)
+                .onErrorResume(e -> Mono.empty());
     }
 
     //-------------------- Private helpers ------------------------------------------------------
