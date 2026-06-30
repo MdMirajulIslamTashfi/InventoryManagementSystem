@@ -20,6 +20,9 @@ public class CustomerRouter {
                         .GET(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL), customerHandler::getAllCustomers)
                         .POST(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_REGISTER_URL), customerHandler::registerCustomer)
                         .POST(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_LOGIN_URL), customerHandler::loginCustomer)
+                        .GET(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.ID), customerHandler::getCustomerById)
+                        .PUT(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_UPDATE_URL).concat(RouterName.ID), customerHandler::updateCustomer)
+                        .DELETE(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_DELETE_URL).concat(RouterName.ID), customerHandler::deleteCustomer)
                 ).build();
     }
 }

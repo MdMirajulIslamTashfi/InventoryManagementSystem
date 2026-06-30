@@ -1,6 +1,8 @@
 package com.tashfi.InventoryManagementSystem.customer.application.service;
 
+import com.tashfi.InventoryManagementSystem.core.enums.CreatedBy;
 import com.tashfi.InventoryManagementSystem.core.exception.CustomerNotFoundException;
+import com.tashfi.InventoryManagementSystem.core.exception.DuplicateContactException;
 import com.tashfi.InventoryManagementSystem.core.exception.DuplicateEmailException;
 import com.tashfi.InventoryManagementSystem.core.exception.ValidationException;
 import com.tashfi.InventoryManagementSystem.core.util.JwtUtil;
@@ -22,6 +24,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +47,7 @@ class CustomerServiceTest {
     private CustomerRegistrationRequestDto validRegistrationRequest;
     private CustomerLoginRequestDto validLoginRequest;
     private Customer savedCustomer;
+    private UUID customerId;
 
     @BeforeEach
     void setUp() {
@@ -53,13 +57,15 @@ class CustomerServiceTest {
                 jwtUtil
         );
 
+        customerId = UUID.randomUUID();
+
         validRegistrationRequest = CustomerRegistrationRequestDto.builder()
                 .firstName("John")
                 .lastName("Doe")
                 .gender(Gender.MALE)
                 .dateOfBirth(LocalDate.of(1995, 3, 24))
                 .address("123 Dhaka Road, Mirpur")
-                .contact("01712345678")
+                .contact("+8801712345678")
                 .email("john@gmail.com")
                 .password("john123")
                 .build();
@@ -70,15 +76,17 @@ class CustomerServiceTest {
                 .build();
 
         savedCustomer = Customer.builder()
-                .id(UUID.randomUUID())
+                .id(customerId)
                 .firstName("John")
                 .lastName("Doe")
                 .gender(Gender.MALE)
                 .dateOfBirth(LocalDate.of(1995, 3, 24))
                 .address("123 Dhaka Road, Mirpur")
-                .contact("01712345678")
+                .contact("+8801712345678")
                 .email("john@gmail.com")
                 .password("$2a$10$hashedpassword")
+                .createdBy(CreatedBy.EMAIL)
+                .createdAt(LocalDateTime.now().minusDays(1))
                 .build();
     }
 
@@ -130,7 +138,7 @@ class CustomerServiceTest {
             StepVerifier.create(service.findAllCustomers())
                     .assertNext(response -> {
                         assertThat(response.getTotalRecords()).isEqualTo(1);
-                        assertThat(response.getCustomerData().get(0).getEmail())
+                        assertThat(response.getCustomerData().getFirst().getEmail())
                                 .isEqualTo("john@gmail.com");
                     })
                     .verifyComplete();
@@ -145,6 +153,7 @@ class CustomerServiceTest {
         @DisplayName("successfully registers a valid customer")
         void registersValidCustomer() {
             when(customerPersistencePort.existsByEmail("john@gmail.com")).thenReturn(Mono.just(false));
+            when(customerPersistencePort.existsByContact("+8801712345678")).thenReturn(Mono.just(false));
             when(passwordEncoder.encode("john123")).thenReturn("$2a$10$hashedpassword");
             when(customerPersistencePort.saveCustomer(any(Customer.class))).thenReturn(Mono.just(savedCustomer));
 
@@ -163,6 +172,7 @@ class CustomerServiceTest {
         @DisplayName("encodes password before saving — never stores plain text")
         void passwordIsEncodedBeforeSaving() {
             when(customerPersistencePort.existsByEmail(anyString())).thenReturn(Mono.just(false));
+            when(customerPersistencePort.existsByContact(anyString())).thenReturn(Mono.just(false));
             when(passwordEncoder.encode("john123")).thenReturn("$2a$10$hashedpassword");
             when(customerPersistencePort.saveCustomer(any())).thenReturn(Mono.just(savedCustomer));
 
@@ -268,6 +278,7 @@ class CustomerServiceTest {
         void acceptsNameWithSpaces() {
             validRegistrationRequest.setFirstName("Mary Ann");
             when(customerPersistencePort.existsByEmail(anyString())).thenReturn(Mono.just(false));
+            when(customerPersistencePort.existsByContact(anyString())).thenReturn(Mono.just(false));
             when(passwordEncoder.encode(anyString())).thenReturn("hashed");
             when(customerPersistencePort.saveCustomer(any())).thenReturn(Mono.just(savedCustomer));
 
@@ -323,6 +334,7 @@ class CustomerServiceTest {
         void acceptsEmailWithDotsAndPlus() {
             validRegistrationRequest.setEmail("user.name+tag@example.org");
             when(customerPersistencePort.existsByEmail(anyString())).thenReturn(Mono.just(false));
+            when(customerPersistencePort.existsByContact(anyString())).thenReturn(Mono.just(false));
             when(passwordEncoder.encode(anyString())).thenReturn("hashed");
             when(customerPersistencePort.saveCustomer(any())).thenReturn(Mono.just(savedCustomer));
 
@@ -333,23 +345,13 @@ class CustomerServiceTest {
     }
 
     @Nested
-    @DisplayName("registerCustomer() — contact validation")
+    @DisplayName("registerCustomer() — contact validation (international format)")
     class RegisterCustomerContactValidation {
 
         @Test
-        @DisplayName("throws ValidationException for contact shorter than 11 digits")
-        void throwsOnShortContact() {
-            validRegistrationRequest.setContact("0171234");
-            StepVerifier.create(service.registerCustomer(validRegistrationRequest))
-                    .expectErrorMatches(ex -> ex instanceof ValidationException &&
-                            ex.getMessage().equals("Contact must be exactly 11 digits"))
-                    .verify();
-        }
-
-        @Test
-        @DisplayName("throws ValidationException for contact longer than 11 digits")
-        void throwsOnLongContact() {
-            validRegistrationRequest.setContact("017123456789");
+        @DisplayName("throws ValidationException for contact missing + prefix")
+        void throwsOnMissingPlusPrefix() {
+            validRegistrationRequest.setContact("8801712345678");
             StepVerifier.create(service.registerCustomer(validRegistrationRequest))
                     .expectErrorMatches(ex -> ex instanceof ValidationException)
                     .verify();
@@ -358,7 +360,7 @@ class CustomerServiceTest {
         @Test
         @DisplayName("throws ValidationException for contact with letters")
         void throwsOnContactWithLetters() {
-            validRegistrationRequest.setContact("0171234abcd");
+            validRegistrationRequest.setContact("+880171234abc");
             StepVerifier.create(service.registerCustomer(validRegistrationRequest))
                     .expectErrorMatches(ex -> ex instanceof ValidationException)
                     .verify();
@@ -371,6 +373,87 @@ class CustomerServiceTest {
             StepVerifier.create(service.registerCustomer(validRegistrationRequest))
                     .expectErrorMatches(ex -> ex instanceof ValidationException)
                     .verify();
+        }
+
+        @Test
+        @DisplayName("throws ValidationException for too-short contact")
+        void throwsOnTooShortContact() {
+            validRegistrationRequest.setContact("+880");
+            StepVerifier.create(service.registerCustomer(validRegistrationRequest))
+                    .expectErrorMatches(ex -> ex instanceof ValidationException)
+                    .verify();
+        }
+
+        @Test
+        @DisplayName("accepts valid BD contact (+880)")
+        void acceptsValidBdContact() {
+            when(customerPersistencePort.existsByEmail(anyString())).thenReturn(Mono.just(false));
+            when(customerPersistencePort.existsByContact(anyString())).thenReturn(Mono.just(false));
+            when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+            when(customerPersistencePort.saveCustomer(any())).thenReturn(Mono.just(savedCustomer));
+
+            StepVerifier.create(service.registerCustomer(validRegistrationRequest))
+                    .assertNext(r -> assertThat(r).isNotNull())
+                    .verifyComplete();
+        }
+
+        @Test
+        @DisplayName("accepts valid US contact (+1)")
+        void acceptsValidUsContact() {
+            validRegistrationRequest.setContact("+11234567890");
+            when(customerPersistencePort.existsByEmail(anyString())).thenReturn(Mono.just(false));
+            when(customerPersistencePort.existsByContact(anyString())).thenReturn(Mono.just(false));
+            when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+            when(customerPersistencePort.saveCustomer(any())).thenReturn(Mono.just(savedCustomer));
+
+            StepVerifier.create(service.registerCustomer(validRegistrationRequest))
+                    .assertNext(r -> assertThat(r).isNotNull())
+                    .verifyComplete();
+        }
+    }
+
+    @Nested
+    @DisplayName("registerCustomer() — duplicate contact")
+    class RegisterCustomerDuplicateContact {
+
+        @Test
+        @DisplayName("throws DuplicateContactException when contact already exists")
+        void throwsDuplicateContactException() {
+            when(customerPersistencePort.existsByEmail("john@gmail.com")).thenReturn(Mono.just(false));
+            when(customerPersistencePort.existsByContact("+8801712345678")).thenReturn(Mono.just(true));
+
+            StepVerifier.create(service.registerCustomer(validRegistrationRequest))
+                    .expectErrorMatches(ex ->
+                            ex instanceof DuplicateContactException &&
+                                    ex.getMessage().contains("+8801712345678"))
+                    .verify();
+
+            verify(customerPersistencePort, never()).saveCustomer(any());
+        }
+
+        @Test
+        @DisplayName("checks email duplication before contact duplication")
+        void checksEmailBeforeContact() {
+            when(customerPersistencePort.existsByEmail("john@gmail.com")).thenReturn(Mono.just(true));
+
+            StepVerifier.create(service.registerCustomer(validRegistrationRequest))
+                    .expectErrorMatches(ex -> ex instanceof DuplicateEmailException)
+                    .verify();
+
+            verify(customerPersistencePort, never()).existsByContact(anyString());
+        }
+
+        @Test
+        @DisplayName("does not save when contact already exists")
+        void doesNotSaveOnDuplicateContact() {
+            when(customerPersistencePort.existsByEmail(anyString())).thenReturn(Mono.just(false));
+            when(customerPersistencePort.existsByContact(anyString())).thenReturn(Mono.just(true));
+
+            StepVerifier.create(service.registerCustomer(validRegistrationRequest))
+                    .expectError(DuplicateContactException.class)
+                    .verify();
+
+            verify(customerPersistencePort, never()).saveCustomer(any());
         }
     }
 
@@ -411,6 +494,7 @@ class CustomerServiceTest {
         void acceptsAddressWithAllowedChars() {
             validRegistrationRequest.setAddress("Flat-4, Block B, Dhaka");
             when(customerPersistencePort.existsByEmail(anyString())).thenReturn(Mono.just(false));
+            when(customerPersistencePort.existsByContact(anyString())).thenReturn(Mono.just(false));
             when(passwordEncoder.encode(anyString())).thenReturn("hashed");
             when(customerPersistencePort.saveCustomer(any())).thenReturn(Mono.just(savedCustomer));
 
@@ -526,6 +610,227 @@ class CustomerServiceTest {
                     .verify();
 
             verify(jwtUtil, never()).generateToken(anyString());
+        }
+    }
+
+    @Nested
+    @DisplayName("findCustomerById()")
+    class FindCustomerById {
+
+        @Test
+        @DisplayName("returns customer when found")
+        void returnsCustomerWhenFound() {
+            when(customerPersistencePort.findById(customerId)).thenReturn(Mono.just(savedCustomer));
+
+            StepVerifier.create(service.findCustomerById(customerId))
+                    .assertNext(response -> {
+                        assertThat(response.getMessage()).isEqualTo("Customer fetched successfully");
+                        assertThat(response.getCustomerData().getId()).isEqualTo(customerId);
+                        assertThat(response.getCustomerData().getEmail()).isEqualTo("john@gmail.com");
+                    })
+                    .verifyComplete();
+        }
+
+        @Test
+        @DisplayName("throws CustomerNotFoundException when customer does not exist")
+        void throwsWhenNotFound() {
+            when(customerPersistencePort.findById(customerId)).thenReturn(Mono.empty());
+
+            StepVerifier.create(service.findCustomerById(customerId))
+                    .expectErrorMatches(ex -> ex instanceof CustomerNotFoundException &&
+                            ex.getMessage().contains(customerId.toString()))
+                    .verify();
+        }
+    }
+
+    @Nested
+    @DisplayName("updateCustomer() — full and partial updates")
+    class UpdateCustomer {
+
+        @Test
+        @DisplayName("updates only address when only address is provided (partial update)")
+        void updatesOnlyAddressWhenOnlyAddressProvided() {
+            Customer partialUpdate = Customer.builder()
+                    .address("123, Dhaka Road, Uttara")
+                    .build();
+
+            when(customerPersistencePort.findById(customerId)).thenReturn(Mono.just(savedCustomer));
+            when(customerPersistencePort.saveCustomer(any(Customer.class)))
+                    .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+            StepVerifier.create(service.updateCustomer(customerId, partialUpdate))
+                    .assertNext(response -> {
+                        Customer updated = response.getCustomerData();
+                        assertThat(updated.getAddress()).isEqualTo("123, Dhaka Road, Uttara");
+                        // unchanged fields preserved
+                        assertThat(updated.getFirstName()).isEqualTo("John");
+                        assertThat(updated.getLastName()).isEqualTo("Doe");
+                        assertThat(updated.getEmail()).isEqualTo("john@gmail.com");
+                        assertThat(updated.getContact()).isEqualTo("+8801712345678");
+                        // audit fields set
+                        assertThat(updated.getUpdatedBy()).isEqualTo(CreatedBy.EMAIL);
+                        assertThat(updated.getUpdatedAt()).isNotNull();
+                    })
+                    .verifyComplete();
+        }
+
+        @Test
+        @DisplayName("does not run name validation when name fields are not provided")
+        void skipsNameValidationOnPartialUpdate() {
+            Customer partialUpdate = Customer.builder()
+                    .address("Valid Address")
+                    .build();
+
+            when(customerPersistencePort.findById(customerId)).thenReturn(Mono.just(savedCustomer));
+            when(customerPersistencePort.saveCustomer(any(Customer.class)))
+                    .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+            // would throw if firstName/lastName validation ran against null values
+            StepVerifier.create(service.updateCustomer(customerId, partialUpdate))
+                    .assertNext(response -> assertThat(response).isNotNull())
+                    .verifyComplete();
+        }
+
+        @Test
+        @DisplayName("updates multiple fields when multiple fields are provided")
+        void updatesMultipleFields() {
+            Customer partialUpdate = Customer.builder()
+                    .firstName("Jonathan")
+                    .address("New Address, Banani")
+                    .build();
+
+            when(customerPersistencePort.findById(customerId)).thenReturn(Mono.just(savedCustomer));
+            when(customerPersistencePort.saveCustomer(any(Customer.class)))
+                    .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+            StepVerifier.create(service.updateCustomer(customerId, partialUpdate))
+                    .assertNext(response -> {
+                        Customer updated = response.getCustomerData();
+                        assertThat(updated.getFirstName()).isEqualTo("Jonathan");
+                        assertThat(updated.getAddress()).isEqualTo("New Address, Banani");
+                        assertThat(updated.getLastName()).isEqualTo("Doe"); // unchanged
+                    })
+                    .verifyComplete();
+        }
+
+        @Test
+        @DisplayName("throws ValidationException when provided firstName is invalid")
+        void throwsOnInvalidFirstNameWhenProvided() {
+            Customer partialUpdate = Customer.builder()
+                    .firstName("John123")
+                    .build();
+
+            when(customerPersistencePort.findById(customerId)).thenReturn(Mono.just(savedCustomer));
+
+            StepVerifier.create(service.updateCustomer(customerId, partialUpdate))
+                    .expectErrorMatches(ex -> ex instanceof ValidationException &&
+                            ex.getMessage().equals("Name format is invalid"))
+                    .verify();
+
+            verify(customerPersistencePort, never()).saveCustomer(any());
+        }
+
+        @Test
+        @DisplayName("throws ValidationException when provided contact is invalid")
+        void throwsOnInvalidContactWhenProvided() {
+            Customer partialUpdate = Customer.builder()
+                    .contact("invalid-contact")
+                    .build();
+
+            when(customerPersistencePort.findById(customerId)).thenReturn(Mono.just(savedCustomer));
+
+            StepVerifier.create(service.updateCustomer(customerId, partialUpdate))
+                    .expectErrorMatches(ex -> ex instanceof ValidationException)
+                    .verify();
+
+            verify(customerPersistencePort, never()).saveCustomer(any());
+        }
+
+        @Test
+        @DisplayName("throws CustomerNotFoundException when customer does not exist")
+        void throwsWhenCustomerNotFound() {
+            Customer partialUpdate = Customer.builder().address("Some Address").build();
+
+            when(customerPersistencePort.findById(customerId)).thenReturn(Mono.empty());
+
+            StepVerifier.create(service.updateCustomer(customerId, partialUpdate))
+                    .expectErrorMatches(ex -> ex instanceof CustomerNotFoundException)
+                    .verify();
+
+            verify(customerPersistencePort, never()).saveCustomer(any());
+        }
+
+        @Test
+        @DisplayName("does not allow email or password to be changed via update")
+        void doesNotAllowEmailOrPasswordChange() {
+            Customer partialUpdate = Customer.builder()
+                    .email("hacked@evil.com")
+                    .password("newpassword")
+                    .address("Valid Address")
+                    .build();
+
+            when(customerPersistencePort.findById(customerId)).thenReturn(Mono.just(savedCustomer));
+            when(customerPersistencePort.saveCustomer(any(Customer.class)))
+                    .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+            StepVerifier.create(service.updateCustomer(customerId, partialUpdate))
+                    .assertNext(response -> {
+                        Customer updated = response.getCustomerData();
+                        assertThat(updated.getEmail()).isEqualTo("john@gmail.com"); // unchanged
+                        assertThat(updated.getPassword()).isEqualTo("$2a$10$hashedpassword"); // unchanged
+                    })
+                    .verifyComplete();
+        }
+
+        @Test
+        @DisplayName("sets updatedBy and updatedAt on every update")
+        void setsUpdatedByAndUpdatedAt() {
+            Customer partialUpdate = Customer.builder().address("Valid Address").build();
+
+            when(customerPersistencePort.findById(customerId)).thenReturn(Mono.just(savedCustomer));
+            when(customerPersistencePort.saveCustomer(any(Customer.class)))
+                    .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+            LocalDateTime before = LocalDateTime.now();
+
+            StepVerifier.create(service.updateCustomer(customerId, partialUpdate))
+                    .assertNext(response -> {
+                        Customer updated = response.getCustomerData();
+                        assertThat(updated.getUpdatedBy()).isEqualTo(CreatedBy.EMAIL);
+                        assertThat(updated.getUpdatedAt()).isNotNull();
+                        assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(before.minusSeconds(1));
+                    })
+                    .verifyComplete();
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteCustomer()")
+    class DeleteCustomer {
+
+        @Test
+        @DisplayName("deletes customer when it exists")
+        void deletesWhenExists() {
+            when(customerPersistencePort.existsById(customerId)).thenReturn(Mono.just(true));
+            when(customerPersistencePort.deleteById(customerId)).thenReturn(Mono.empty());
+
+            StepVerifier.create(service.deleteCustomer(customerId))
+                    .verifyComplete();
+
+            verify(customerPersistencePort).deleteById(customerId);
+        }
+
+        @Test
+        @DisplayName("throws CustomerNotFoundException when customer does not exist")
+        void throwsWhenNotExists() {
+            when(customerPersistencePort.existsById(customerId)).thenReturn(Mono.just(false));
+
+            StepVerifier.create(service.deleteCustomer(customerId))
+                    .expectErrorMatches(ex -> ex instanceof CustomerNotFoundException &&
+                            ex.getMessage().contains(customerId.toString()))
+                    .verify();
+
+            verify(customerPersistencePort, never()).deleteById(any());
         }
     }
 }

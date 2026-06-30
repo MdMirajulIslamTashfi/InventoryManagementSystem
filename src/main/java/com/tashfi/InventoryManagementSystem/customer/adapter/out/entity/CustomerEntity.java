@@ -45,4 +45,10 @@ public class CustomerEntity {
 
     @Column("created_at")
     private LocalDateTime createdAt;
+
+    @Column("updated_by")
+    private CreatedBy updatedBy;
+
+    @Column("updated_at")
+    private LocalDateTime updatedAt;
 }

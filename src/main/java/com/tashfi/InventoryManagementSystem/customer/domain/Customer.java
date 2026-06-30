@@ -27,4 +27,6 @@ public class Customer {
     private String password;
     private CreatedBy createdBy;
     private LocalDateTime createdAt;
+    private CreatedBy updatedBy;
+    private LocalDateTime updatedAt;
 }

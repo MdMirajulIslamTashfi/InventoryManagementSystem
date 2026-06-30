@@ -32,6 +32,16 @@ public class GlobalExceptionHandler {
                 .build());
     }
 
+    @ExceptionHandler(DuplicateContactException.class)
+    public Mono<ErrorResponse> handleDuplicateContact(DuplicateContactException ex) {
+        return Mono.just(ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .error("Duplicate Entry")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build());
+    }
+
     @ExceptionHandler(CustomerNotFoundException.class)
     public Mono<ErrorResponse> handleNotFound(CustomerNotFoundException ex) {
         return Mono.just(ErrorResponse.builder()
@@ -88,6 +98,8 @@ public class GlobalExceptionHandler {
             return handleValidation(e);
         if (ex instanceof DuplicateEmailException e)
             return handleDuplicate(e);
+        if (ex instanceof DuplicateContactException e)
+            return handleDuplicateContact(e);
         if (ex instanceof CustomerNotFoundException e)
             return handleNotFound(e);
         if (ex instanceof ProductNotFoundException e)

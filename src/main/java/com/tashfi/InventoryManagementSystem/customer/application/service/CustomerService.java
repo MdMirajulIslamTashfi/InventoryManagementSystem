@@ -2,6 +2,7 @@ package com.tashfi.InventoryManagementSystem.customer.application.service;
 
 import com.tashfi.InventoryManagementSystem.core.enums.CreatedBy;
 import com.tashfi.InventoryManagementSystem.core.exception.CustomerNotFoundException;
+import com.tashfi.InventoryManagementSystem.core.exception.DuplicateContactException;
 import com.tashfi.InventoryManagementSystem.core.exception.DuplicateEmailException;
 import com.tashfi.InventoryManagementSystem.core.exception.ValidationException;
 import com.tashfi.InventoryManagementSystem.core.util.JwtUtil;
@@ -12,6 +13,7 @@ import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.req
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerLoginResponseDto;
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerRegistrationResponseDto;
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerResponseDto;
+import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerSingleResponseDto;
 import com.tashfi.InventoryManagementSystem.customer.application.port.out.CustomerPersistencePort;
 import com.tashfi.InventoryManagementSystem.customer.domain.Customer;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class CustomerService implements CustomerUseCase {
@@ -57,6 +60,11 @@ public class CustomerService implements CustomerUseCase {
                 .flatMap(exists -> {
                     if (exists)
                         return Mono.error(new DuplicateEmailException("Email already registered: " + request.getEmail()));
+                    return customerPersistencePort.existsByContact(request.getContact());
+                })
+                .flatMap(exists -> {
+                    if (exists)
+                        return Mono.error(new DuplicateContactException("Contact already exists: " + request.getContact()));
 
                     Customer customer = Customer.builder()
                             .firstName(request.getFirstName())
@@ -98,6 +106,62 @@ public class CustomerService implements CustomerUseCase {
                             .email(customer.getEmail())
                             .expiresIn(expiresIn)
                             .build());
+                });
+    }
+
+    @Override
+    public Mono<CustomerSingleResponseDto> findCustomerById(UUID id) {
+        return customerPersistencePort.findById(id)
+                .switchIfEmpty(Mono.error(new CustomerNotFoundException("No customer found with id: " + id)))
+                .map(customer -> CustomerSingleResponseDto.builder()
+                        .message("Customer fetched successfully")
+                        .customerData(customer)
+                        .build());
+    }
+
+    @Override
+    public Mono<CustomerSingleResponseDto> updateCustomer(UUID id, Customer customer) {
+        return customerPersistencePort.findById(id)
+                .switchIfEmpty(Mono.error(new CustomerNotFoundException("No customer found with id: " + id)))
+                .flatMap(existing -> {
+                    Mono<Void> validation = Mono.empty();
+
+                    if (customer.getFirstName() != null)
+                        validation = validation.then(ValidationUtil.validateName(customer.getFirstName())).then();
+                    if (customer.getLastName() != null)
+                        validation = validation.then(ValidationUtil.validateName(customer.getLastName())).then();
+                    if (customer.getContact() != null)
+                        validation = validation.then(ValidationUtil.validateContact(customer.getContact())).then();
+                    if (customer.getAddress() != null)
+                        validation = validation.then(ValidationUtil.validateInput(customer.getAddress())).then();
+
+                    return validation.thenReturn(existing);
+                })
+                .flatMap(existing -> {
+                    if (customer.getFirstName() != null) existing.setFirstName(customer.getFirstName());
+                    if (customer.getLastName() != null) existing.setLastName(customer.getLastName());
+                    if (customer.getGender() != null) existing.setGender(customer.getGender());
+                    if (customer.getDateOfBirth() != null) existing.setDateOfBirth(customer.getDateOfBirth());
+                    if (customer.getAddress() != null) existing.setAddress(customer.getAddress());
+                    if (customer.getContact() != null) existing.setContact(customer.getContact());
+                    existing.setUpdatedBy(CreatedBy.EMAIL);
+                    existing.setUpdatedAt(LocalDateTime.now());
+
+                    return customerPersistencePort.saveCustomer(existing);
+                })
+                .map(saved -> CustomerSingleResponseDto.builder()
+                        .message("Customer updated successfully")
+                        .customerData(saved)
+                        .build());
+    }
+
+    @Override
+    public Mono<Void> deleteCustomer(UUID id) {
+        return customerPersistencePort.existsById(id)
+                .flatMap(exists -> {
+                    if (!exists)
+                        return Mono.error(new CustomerNotFoundException("No customer found with id: " + id));
+                    return customerPersistencePort.deleteById(id);
                 });
     }
 }

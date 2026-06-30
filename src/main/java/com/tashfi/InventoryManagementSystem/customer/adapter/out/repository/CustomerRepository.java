@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface CustomerRepository extends R2dbcRepository<CustomerEntity, UUID> {
     Mono<CustomerEntity> findByEmail(String email);
     Mono<Boolean> existsByEmail(String email);
+    Mono<Boolean> existsByContact(String contact);
 }

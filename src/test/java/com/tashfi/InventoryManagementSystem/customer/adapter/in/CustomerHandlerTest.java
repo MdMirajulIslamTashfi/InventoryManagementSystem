@@ -13,6 +13,7 @@ import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.req
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerLoginResponseDto;
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerRegistrationResponseDto;
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerResponseDto;
+import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerSingleResponseDto;
 import com.tashfi.InventoryManagementSystem.customer.domain.Customer;
 import com.tashfi.InventoryManagementSystem.core.enums.Gender;
 import org.junit.jupiter.api.BeforeEach;
@@ -282,6 +283,152 @@ public class CustomerHandlerTest {
                     .expectBody()
                     .jsonPath("$.error").isEqualTo("Validation Error")
                     .jsonPath("$.message").isEqualTo("Invalid password");
+        }
+    }
+
+    // GET /api/customers/{id}
+    @Nested
+    @DisplayName("GET /api/customers/{id}")
+    class GetCustomerById {
+
+        @Test
+        @DisplayName("returns 200 with the customer when found")
+        void returns200WhenFound() {
+            Customer customer = buildCustomer();
+            CustomerSingleResponseDto response = CustomerSingleResponseDto.builder()
+                    .message("Customer fetched successfully")
+                    .customerData(customer)
+                    .build();
+
+            when(customerUseCase.findCustomerById(any(UUID.class))).thenReturn(Mono.just(response));
+
+            webTestClient.get()
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat("/").concat(customer.getId().toString()))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .exchange()
+                    .expectStatus().isOk()
+                    .expectBody()
+                    .jsonPath("$.message").isEqualTo("Customer fetched successfully")
+                    .jsonPath("$.customerData.email").isEqualTo("john@gmail.com");
+        }
+
+        @Test
+        @DisplayName("returns 404 when customer not found")
+        void returns404WhenNotFound() {
+            UUID id = UUID.randomUUID();
+            when(customerUseCase.findCustomerById(any(UUID.class)))
+                    .thenReturn(Mono.error(new CustomerNotFoundException("No customer found with id: " + id)));
+
+            webTestClient.get()
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat("/").concat(id.toString()))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .exchange()
+                    .expectStatus().isNotFound()
+                    .expectBody()
+                    .jsonPath("$.error").isEqualTo("Not Found")
+                    .jsonPath("$.message").isEqualTo("No customer found with id: " + id);
+        }
+    }
+
+    // PUT /api/customers/update/{id}
+    @Nested
+    @DisplayName("PUT /api/customers/update/{id}")
+    class UpdateCustomer {
+
+        @Test
+        @DisplayName("returns 200 with the updated customer")
+        void returns200OnSuccess() {
+            Customer customer = buildCustomer();
+            customer.setAddress("New Address, Banani");
+            CustomerSingleResponseDto response = CustomerSingleResponseDto.builder()
+                    .message("Customer updated successfully")
+                    .customerData(customer)
+                    .build();
+
+            when(customerUseCase.updateCustomer(any(UUID.class), any(Customer.class)))
+                    .thenReturn(Mono.just(response));
+
+            webTestClient.put()
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_UPDATE_URL).concat("/").concat(customer.getId().toString()))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(Customer.builder().address("New Address, Banani").build())
+                    .exchange()
+                    .expectStatus().isOk()
+                    .expectBody()
+                    .jsonPath("$.message").isEqualTo("Customer updated successfully")
+                    .jsonPath("$.customerData.address").isEqualTo("New Address, Banani");
+        }
+
+        @Test
+        @DisplayName("returns 400 when validation fails")
+        void returns400OnValidationError() {
+            UUID id = UUID.randomUUID();
+            when(customerUseCase.updateCustomer(any(UUID.class), any(Customer.class)))
+                    .thenReturn(Mono.error(new ValidationException("Name format is invalid")));
+
+            webTestClient.put()
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_UPDATE_URL).concat("/").concat(id.toString()))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(Customer.builder().firstName("John123").build())
+                    .exchange()
+                    .expectStatus().isBadRequest()
+                    .expectBody()
+                    .jsonPath("$.error").isEqualTo("Validation Error")
+                    .jsonPath("$.message").isEqualTo("Name format is invalid");
+        }
+
+        @Test
+        @DisplayName("returns 404 when customer not found")
+        void returns404WhenNotFound() {
+            UUID id = UUID.randomUUID();
+            when(customerUseCase.updateCustomer(any(UUID.class), any(Customer.class)))
+                    .thenReturn(Mono.error(new CustomerNotFoundException("No customer found with id: " + id)));
+
+            webTestClient.put()
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_UPDATE_URL).concat("/").concat(id.toString()))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(Customer.builder().address("Some Address").build())
+                    .exchange()
+                    .expectStatus().isNotFound()
+                    .expectBody()
+                    .jsonPath("$.error").isEqualTo("Not Found")
+                    .jsonPath("$.message").isEqualTo("No customer found with id: " + id);
+        }
+    }
+
+    // DELETE /api/customers/delete/{id}
+    @Nested
+    @DisplayName("DELETE /api/customers/delete/{id}")
+    class DeleteCustomer {
+
+        @Test
+        @DisplayName("returns 204 when customer deleted")
+        void returns204OnSuccess() {
+            UUID id = UUID.randomUUID();
+            when(customerUseCase.deleteCustomer(any(UUID.class))).thenReturn(Mono.empty());
+
+            webTestClient.delete()
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_DELETE_URL).concat("/").concat(id.toString()))
+                    .exchange()
+                    .expectStatus().isNoContent()
+                    .expectBody().isEmpty();
+        }
+
+        @Test
+        @DisplayName("returns 404 when customer not found")
+        void returns404WhenNotFound() {
+            UUID id = UUID.randomUUID();
+            when(customerUseCase.deleteCustomer(any(UUID.class)))
+                    .thenReturn(Mono.error(new CustomerNotFoundException("No customer found with id: " + id)));
+
+            webTestClient.delete()
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_DELETE_URL).concat("/").concat(id.toString()))
+                    .accept(MediaType.APPLICATION_JSON)
+                    .exchange()
+                    .expectStatus().isNotFound()
+                    .expectBody()
+                    .jsonPath("$.error").isEqualTo("Not Found")
+                    .jsonPath("$.message").isEqualTo("No customer found with id: " + id);
         }
     }
 }

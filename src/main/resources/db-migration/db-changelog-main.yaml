@@ -62,3 +62,10 @@ databaseChangeLog:
         - sqlFile:
             path: db-migration/009-drop-product-images-column.sql
             relativeToChangelogFile: false
+  - changeSet:
+      id: 010-update-customer-table-add-updated-by-and-at-change-contact-column
+      author: tashfi
+      changes:
+        - sqlFile:
+            path: db-migration/010-update-customer-table-add-updated-by-and-at-change-contact-column.sql
+            relativeToChangelogFile: false

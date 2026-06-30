@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.UUID;
+
 @Component
 @RequiredArgsConstructor
 public class CustomerAdapter implements CustomerPersistencePort {
@@ -35,8 +37,27 @@ public class CustomerAdapter implements CustomerPersistencePort {
         return customerRepository.findByEmail(email).map(this::toDomain);
     }
 
-    // ── mappers ──────────────────────────────────────────────
+    @Override
+    public Mono<Customer> findById(UUID id) {
+        return customerRepository.findById(id).map(this::toDomain);
+    }
 
+    @Override
+    public Mono<Boolean> existsById(UUID id) {
+        return customerRepository.existsById(id);
+    }
+
+    @Override
+    public Mono<Void> deleteById(UUID id) {
+        return customerRepository.deleteById(id);
+    }
+
+    @Override
+    public Mono<Boolean> existsByContact(String contact) {
+        return customerRepository.existsByContact(contact);
+    }
+
+    // ── mappers ──────────────────────────────────────────────
     private Customer toDomain(CustomerEntity entity) {
         return Customer.builder()
                 .id(entity.getId())
@@ -48,6 +69,10 @@ public class CustomerAdapter implements CustomerPersistencePort {
                 .contact(entity.getContact())
                 .email(entity.getEmail())
                 .password(entity.getPassword())
+                .createdBy(entity.getCreatedBy())
+                .createdAt(entity.getCreatedAt())
+                .updatedBy(entity.getUpdatedBy())
+                .updatedAt(entity.getUpdatedAt())
                 .build();
     }
 
@@ -62,6 +87,10 @@ public class CustomerAdapter implements CustomerPersistencePort {
                 .contact(customer.getContact())
                 .email(customer.getEmail())
                 .password(customer.getPassword())
+                .createdBy(customer.getCreatedBy())
+                .createdAt(customer.getCreatedAt())
+                .updatedBy(customer.getUpdatedBy())
+                .updatedAt(customer.getUpdatedAt())
                 .build();
     }
 }
