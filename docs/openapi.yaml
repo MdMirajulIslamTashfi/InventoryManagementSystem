@@ -1,0 +1,1253 @@
+openapi: 3.1.0
+info:
+  title: Inventory Management System
+  description: |
+    Backend API for the **Inventory Management System**.
+
+    A reactive (Spring WebFlux + R2DBC) service built with a hexagonal /
+    ports-and-adapters architecture. It manages customers, product categories,
+    products, and product images.
+
+    ## Authentication
+    Most write operations require a JWT. Obtain one from `POST /customers/login`
+    and send it on subsequent requests as `Authorization: Bearer <token>`.
+    `POST /customers/register` and `POST /customers/login` are public.
+
+    ## Conventions
+    - All request and response bodies are `application/json`.
+    - Timestamps are ISO-8601 (`date-time`); dates are ISO-8601 (`date`).
+    - Errors share a single `ErrorResponse` shape (see schemas).
+  version: 1.0.0
+  contact:
+    name: Md. Mirajul Islam Tashfi
+servers:
+  - url: http://localhost:8080/api
+    description: Local Development (Inventory Management System)
+
+  - url: http://localhost:8080/api
+    description: Dev Development (Inventory Management System)
+
+  - url: http://localhost:9090/api
+    description: Content Management System (microservice)
+tags:
+  - name: Customer
+    description: Customer Management (CRUD)
+  - name: Product Category
+    description: Category Management (CRUD)
+  - name: Product
+    description: Product Management (CRUD)
+  - name: Product Image
+    description: Manage individual images of a product (view / replace / delete)
+  - name: Content
+    description: |
+      Content Management System — a separate microservice (port 9090) that
+      stores and serves product images. All Content endpoints are served from
+      the `http://localhost:9090/api` server.
+
+paths:
+  /customers:
+    get:
+      tags:
+        - Customer
+      summary: List All Customers
+      description: Returns every registered customer along with a total count.
+      operationId: getAllCustomers
+      responses:
+        '200':
+          description: Customers fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponseDto'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /customers/register:
+    post:
+      tags:
+        - Customer
+      summary: Register New Customer
+      description: Register a new customer; no authentication, permit to all.
+      operationId: registerCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRegistrationRequestDto'
+            example:
+              firstName: "John"
+              lastName: "Doe"
+              gender: "MALE"
+              dateOfBirth: "1995-03-24"
+              address: "123, Dhaka Road, Mirpur"
+              contact: "01712345678"
+              email: "john@gmail.com"
+              password: "john"
+      responses:
+        '201':
+          description: Customer registered Successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerRegistrationResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /customers/login:
+    post:
+      tags:
+        - Customer
+      summary: Customer Login
+      description: |
+        Authenticates a customer by email and password. On success returns a JWT
+        to be sent as `Authorization: Bearer <token>` on protected endpoints.
+        No authentication required.
+      operationId: loginCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerLoginRequestDto'
+            example:
+              email: "john@gmail.com"
+              password: "john"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerLoginResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories:
+    get:
+      tags:
+        - Product Category
+      summary: List All Categories
+      description: Returns every product category along with a total count.
+      operationId: getAllCategories
+      responses:
+        '200':
+          description: Categories fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponseDto'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories/search/{name}:
+    get:
+      tags:
+        - Product Category
+      summary: Search Category by Name
+      description: Returns a single category matching the given name.
+      operationId: searchCategoryByName
+      parameters:
+        - $ref: '#/components/parameters/CategoryName'
+      responses:
+        '200':
+          description: Category found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategorySingleResponseDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories/add:
+    post:
+      tags:
+        - Product Category
+      summary: Create Category
+      description: Creates a new product category.
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequestDto'
+            example:
+              name: "Electronics"
+              description: "Phones, laptops, and accessories"
+      responses:
+        '201':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategorySingleResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories/update/{name}:
+    put:
+      tags:
+        - Product Category
+      summary: Update Category
+      description: Updates an existing category identified by its current name.
+      operationId: updateCategory
+      parameters:
+        - $ref: '#/components/parameters/CategoryName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequestDto'
+            example:
+              name: "Consumer Electronics"
+              description: "Updated description"
+      responses:
+        '200':
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategorySingleResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories/delete/{name}:
+    delete:
+      tags:
+        - Product Category
+      summary: Delete Category
+      description: Deletes the category with the given name.
+      operationId: deleteCategory
+      parameters:
+        - $ref: '#/components/parameters/CategoryName'
+      responses:
+        '204':
+          description: Category deleted successfully (no content)
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products:
+    get:
+      tags:
+        - Product
+      summary: List All Products
+      description: Returns every product (with its images) along with a total count.
+      operationId: getAllProducts
+      responses:
+        '200':
+          description: Products fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponseDto'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/search/{name}:
+    get:
+      tags:
+        - Product
+      summary: Search Products by Name
+      description: Returns all products whose name matches the given value.
+      operationId: searchProducts
+      parameters:
+        - $ref: '#/components/parameters/ProductName'
+      responses:
+        '200':
+          description: Matching products fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponseDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/add:
+    post:
+      tags:
+        - Product
+      summary: Create Product
+      description: |
+        Creates a new product. Sent as `multipart/form-data` so one or more
+        images can be uploaded alongside the product fields. Image files may be
+        attached under either the `images` or `image` field name (or omitted).
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductFormData'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductSingleResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/update/{name}:
+    put:
+      tags:
+        - Product
+      summary: Update Product
+      description: |
+        Updates an existing product identified by its current name. Sent as
+        `multipart/form-data`; new image files are optional and, when provided,
+        may use the `images` or `image` field name.
+      operationId: updateProduct
+      parameters:
+        - $ref: '#/components/parameters/ProductName'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductFormData'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductSingleResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/delete/{name}:
+    delete:
+      tags:
+        - Product
+      summary: Delete Product
+      description: Deletes the product with the given name.
+      operationId: deleteProduct
+      parameters:
+        - $ref: '#/components/parameters/ProductName'
+      responses:
+        '204':
+          description: Product deleted successfully (no content)
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/{name}/images/{id}:
+    get:
+      tags:
+        - Product Image
+      summary: Get Product Image
+      description: Returns a single image (by id) belonging to the named product.
+      operationId: getImage
+      parameters:
+        - $ref: '#/components/parameters/ProductName'
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '200':
+          description: Image found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductImageSingleResponseDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Product Image
+      summary: Replace Product Image
+      description: |
+        Replaces an existing image (by id) of the named product with a newly
+        uploaded file. Sent as `multipart/form-data`; attach the file under
+        `image` (or `images`).
+      operationId: updateImage
+      parameters:
+        - $ref: '#/components/parameters/ProductName'
+        - $ref: '#/components/parameters/ImageId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProductImageFormData'
+      responses:
+        '200':
+          description: Image updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductImageSingleResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Product Image
+      summary: Delete Product Image
+      description: Deletes a single image (by id) from the named product.
+      operationId: deleteImage
+      parameters:
+        - $ref: '#/components/parameters/ProductName'
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '204':
+          description: Image deleted successfully (no content)
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ===================================================================
+  # Content Management System — microservice on http://localhost:9090/api
+  # Base path within that service: /content/products/{productId}/images
+  # ===================================================================
+  /content/products/{productId}/images:
+    servers:
+      - url: http://localhost:9090/api
+        description: Content Management System (microservice)
+    post:
+      tags:
+        - Content
+      summary: Upload Product Images
+      description: |
+        Uploads one or more image files for a product. Sent as
+        `multipart/form-data`: files go under the `files` field; the remaining
+        product metadata are sent as form fields.
+      operationId: createContentImages
+      parameters:
+        - $ref: '#/components/parameters/ContentProductId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ContentImageCreateFormData'
+      responses:
+        '200':
+          description: Images uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentImageResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags:
+        - Content
+      summary: List Product Images
+      description: Returns all images stored for the given product.
+      operationId: findAllContentImagesByProductId
+      parameters:
+        - $ref: '#/components/parameters/ContentProductId'
+      responses:
+        '200':
+          description: Images fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentImageResponseDto'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Content
+      summary: Delete All Product Images
+      description: Deletes every image stored for the given product.
+      operationId: deleteAllContentImagesByProductId
+      parameters:
+        - $ref: '#/components/parameters/ContentProductId'
+      responses:
+        '204':
+          description: Images deleted successfully (no content)
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /content/products/{productId}/images/{imageId}:
+    servers:
+      - url: http://localhost:9090/api
+        description: Content Management System (microservice)
+    get:
+      tags:
+        - Content
+      summary: Get (redirect to) Image File
+      description: |
+        Redirects to the stored image file. Returns `307 Temporary Redirect`
+        with the file URL (thumbnail if present, otherwise the full image) in
+        the `Location` header — it does not return JSON.
+      operationId: findContentImageById
+      parameters:
+        - $ref: '#/components/parameters/ContentProductId'
+        - $ref: '#/components/parameters/ContentImageId'
+      responses:
+        '307':
+          description: Redirect to the actual image file.
+          headers:
+            Location:
+              description: URL of the stored image file.
+              schema:
+                type: string
+                format: uri
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Content
+      summary: Replace Image File
+      description: |
+        Replaces an existing image's file. Sent as `multipart/form-data`; the
+        new file is required under the `file` field, with optional `isThumbnail`
+        and `updatedBy` form fields.
+      operationId: updateContentImage
+      parameters:
+        - $ref: '#/components/parameters/ContentProductId'
+        - $ref: '#/components/parameters/ContentImageId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ContentImageUpdateFormData'
+      responses:
+        '200':
+          description: Image updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentImageSingleResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Content
+      summary: Delete Image
+      description: Deletes a single image (by id) from the given product.
+      operationId: deleteContentImage
+      parameters:
+        - $ref: '#/components/parameters/ContentProductId'
+        - $ref: '#/components/parameters/ContentImageId'
+      responses:
+        '204':
+          description: Image deleted successfully (no content)
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  parameters:
+    CategoryName:
+      name: name
+      in: path
+      required: true
+      description: Category name (path variable).
+      schema:
+        type: string
+      example: "Electronics"
+    ProductName:
+      name: name
+      in: path
+      required: true
+      description: Product name (path variable).
+      schema:
+        type: string
+      example: "iPhone 15"
+    ImageId:
+      name: id
+      in: path
+      required: true
+      description: Product image identifier (UUID).
+      schema:
+        type: string
+        format: uuid
+      example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    ContentProductId:
+      name: productId
+      in: path
+      required: true
+      description: Product identifier the image belongs to (UUID).
+      schema:
+        type: string
+        format: uuid
+      example: "9c1f0e2a-1b3c-4d5e-8f90-aabbccddeeff"
+    ContentImageId:
+      name: imageId
+      in: path
+      required: true
+      description: Content image identifier (UUID).
+      schema:
+        type: string
+        format: uuid
+      example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT from POST /api/customers/login, sent as `Authorization: Bearer <token>`."
+
+
+  schemas:
+    # ----- Enums -----
+    Gender:
+      type: string
+      description: Customer gender.
+      enum:
+        - MALE
+        - FEMALE
+      example: MALE
+
+    CreatedBy:
+      type: string
+      description: How the customer account was created.
+      enum:
+        - EMAIL
+        - GOOGLE
+      example: EMAIL
+
+    # ----- Customer domain object (used inside responses) -----
+    Customer:
+      type: object
+      description: A customer record as stored by the system.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique customer identifier.
+          example: "String"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        gender:
+          $ref: '#/components/schemas/Gender'
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1995-03-24"
+        address:
+          type: string
+          example: "123, Dhaka Road, Mirpur"
+        contact:
+          type: string
+          example: "01712345678"
+        email:
+          type: string
+          format: email
+          example: "john@gmail.com"
+        password:
+          type: string
+          description: BCrypt-hashed password.
+          example: "$2a$10$7Q...hashed"
+        createdBy:
+          $ref: '#/components/schemas/CreatedBy'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-06-30T16:13:05.21525381"
+
+    # ----- Request DTOs -----
+    CustomerRegistrationRequestDto:
+      type: object
+      description: Payload to register a new customer.
+      required:
+        - firstName
+        - lastName
+        - email
+        - password
+        - contact
+        - address
+      properties:
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        gender:
+          $ref: '#/components/schemas/Gender'
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1995-03-24"
+        address:
+          type: string
+          example: "123, Dhaka Road, Mirpur"
+        contact:
+          type: string
+          example: "01712345678"
+        email:
+          type: string
+          format: email
+          example: "john@gmail.com"
+        password:
+          type: string
+          format: password
+          example: "john"
+
+    CustomerLoginRequestDto:
+      type: object
+      description: Credentials for customer login.
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "john@gmail.com"
+        password:
+          type: string
+          format: password
+          example: "john"
+
+    # ----- Response DTOs -----
+    CustomerRegistrationResponseDto:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Customer registered successfully"
+        customerData:
+          $ref: '#/components/schemas/Customer'
+
+    CustomerLoginResponseDto:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "Login successful"
+        token:
+          type: string
+          description: "JWT to use as `Authorization: Bearer <token>`."
+          example: "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huQGdtYWlsLmNvbSJ9..."
+        email:
+          type: string
+          format: email
+          example: "john@gmail.com"
+        expiresIn:
+          type: integer
+          format: int64
+          description: Token lifetime in milliseconds.
+          example: 3600000
+
+    CustomerResponseDto:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Customers fetched successfully"
+        totalRecords:
+          type: integer
+          example: 1
+        customerData:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+
+    # ----- Product Category domain object -----
+    ProductCategory:
+      type: object
+      description: A product category record as stored by the system.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        name:
+          type: string
+          example: "Electronics"
+        description:
+          type: string
+          example: "Phones, laptops, and accessories"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-09-21T15:33:27.429911"
+
+    # ----- Product Category request DTO -----
+    CategoryRequestDto:
+      type: object
+      description: Payload to create or update a category.
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "Electronics"
+        description:
+          type: string
+          example: "Phones, laptops, and accessories"
+
+    # ----- Product Category response DTOs -----
+    CategoryResponseDto:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Categories fetched successfully"
+        totalRecords:
+          type: integer
+          example: 3
+        categoryData:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductCategory'
+
+    CategorySingleResponseDto:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Category created successfully"
+        categoryData:
+          $ref: '#/components/schemas/ProductCategory'
+
+    # ----- Product enum -----
+    ProductStatus:
+      type: string
+      description: Lifecycle status of a product.
+      enum:
+        - ACTIVE
+        - INACTIVE
+        - DISCONTINUED
+      example: ACTIVE
+
+    # ----- Product Image domain object (embedded in Product) -----
+    ProductImage:
+      type: object
+      description: An image belonging to a product.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        productId:
+          type: string
+          format: uuid
+          example: "9c1f0e2a-1b3c-4d5e-8f90-aabbccddeeff"
+        imageUrl:
+          type: string
+          format: uri
+          example: "https://storage.example.com/products/iphone-15.jpg"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-09-21T15:33:27.429911"
+
+    # ----- Product domain object (used inside responses) -----
+    Product:
+      type: object
+      description: A product record as stored by the system.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        categoryId:
+          type: string
+          format: uuid
+          example: "9c1f0e2a-1b3c-4d5e-8f90-aabbccddeeff"
+        categoryName:
+          type: string
+          example: "Electronics"
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+        name:
+          type: string
+          example: "iPhone 15"
+        description:
+          type: string
+          example: "128GB, Black"
+        quantity:
+          type: integer
+          example: 50
+        price:
+          type: number
+          format: double
+          example: 999.99
+        sku:
+          type: string
+          description: Stock Keeping Unit (optional).
+          example: "IPH-15-128-BLK"
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-09-21T15:33:27.429911"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-09-22T10:05:11.120000"
+
+    # ----- Product multipart form (create & update) -----
+    ProductFormData:
+      type: object
+      description: |
+        Multipart form fields for creating or updating a product. All text
+        fields are sent as form parts; images are uploaded as binary file parts
+        under `images` (or `image`).
+      required:
+        - categoryName
+        - name
+        - quantity
+        - price
+      properties:
+        categoryName:
+          type: string
+          example: "Electronics"
+        name:
+          type: string
+          example: "iPhone 15"
+        description:
+          type: string
+          example: "128GB, Black"
+        quantity:
+          type: integer
+          example: 50
+        price:
+          type: number
+          format: double
+          example: 999.99
+        sku:
+          type: string
+          example: "IPH-15-128-BLK"
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        images:
+          type: array
+          description: One or more image files to upload (optional).
+          items:
+            type: string
+            format: binary
+
+    # ----- Product response DTOs -----
+    ProductResponseDto:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Products fetched successfully"
+        totalRecords:
+          type: integer
+          example: 12
+        productData:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+
+    ProductSingleResponseDto:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Product created successfully"
+        productData:
+          $ref: '#/components/schemas/Product'
+
+    # ----- Product Image multipart form (replace) -----
+    ProductImageFormData:
+      type: object
+      description: Multipart form carrying the replacement image file.
+      required:
+        - image
+      properties:
+        image:
+          type: string
+          format: binary
+          description: The new image file (also accepted under the `images` field).
+
+    # ----- Product Image response DTO -----
+    ProductImageSingleResponseDto:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Image updated successfully"
+        imageData:
+          $ref: '#/components/schemas/ProductImage'
+
+    # ===================================================================
+    # Content Management System (microservice) schemas
+    # ===================================================================
+    ContentImage:
+      type: object
+      description: An image record stored by the Content Management System.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        productId:
+          type: string
+          format: uuid
+          example: "9c1f0e2a-1b3c-4d5e-8f90-aabbccddeeff"
+        productSku:
+          type: string
+          example: "IPH-15-128-BLK"
+        productName:
+          type: string
+          example: "iPhone 15"
+        imageUrl:
+          type: string
+          format: uri
+          example: "https://storage.example.com/products/iphone-15.jpg"
+        imageName:
+          type: string
+          example: "iphone-15.jpg"
+        isThumbnail:
+          type: boolean
+          example: true
+        thumbnailUrl:
+          type: string
+          format: uri
+          example: "https://storage.example.com/products/thumb/iphone-15.jpg"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-09-21T15:33:27.429911"
+        createdBy:
+          type: string
+          example: "admin"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-09-22T10:05:11.120000"
+        updatedBy:
+          type: string
+          example: "admin"
+
+    ContentImageCreateFormData:
+      type: object
+      description: Multipart form for uploading one or more product images.
+      required:
+        - files
+        - productName
+      properties:
+        files:
+          type: array
+          description: One or more image files to upload.
+          items:
+            type: string
+            format: binary
+        productName:
+          type: string
+          example: "iPhone 15"
+        productSku:
+          type: string
+          example: "IPH-15-128-BLK"
+        createdBy:
+          type: string
+          example: "admin"
+        isThumbnail:
+          type: boolean
+          description: Whether the uploaded image(s) act as a thumbnail. Defaults to true.
+          default: true
+          example: true
+
+    ContentImageUpdateFormData:
+      type: object
+      description: Multipart form for replacing an existing image's file.
+      required:
+        - file
+      properties:
+        file:
+          type: string
+          format: binary
+          description: The replacement image file.
+        isThumbnail:
+          type: boolean
+          example: false
+        updatedBy:
+          type: string
+          example: "admin"
+
+    ContentImageResponseDto:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Images fetched successfully"
+        totalRecords:
+          type: integer
+          example: 1
+        imageData:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentImage'
+
+    ContentImageSingleResponseDto:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Image updated successfully"
+        imageData:
+          $ref: '#/components/schemas/ContentImage'
+
+    ErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+        - message
+        - timestamp
+      properties:
+        status:
+          type: integer
+          description: HTTP status code associated with the error.
+          example: 400
+        error:
+          type: string
+          description: Short error category.
+          example: "Validation Error"
+        message:
+          type: string
+          description: Detailed error message.
+          example: "Email format is invalid"
+        timestamp:
+          type: string
+          format: date-time
+          description: Time when the error occurred.
+          example: "2026-06-30T16:15:19.810978051"
+
+  responses:
+    BadRequest:
+      description: Bad Request - validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            ValidationError:
+              value:
+                status: 400
+                error: "Validation Error"
+                message: "Email format is invalid"
+                timestamp: "2026-06-30T16:15:19.810978051"
+    NotFound:
+      description: Not Found - the requested image or hotel does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            NotFound:
+              value:
+                status: 404
+                error: "Not Found"
+                message: "No image found for the given id"
+                timestamp: "2026-06-30T16:15:19.810978051"
+    Unauthorized:
+      description: Unauthorized — missing/invalid token or bad credentials.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            Unauthorized:
+              value:
+                status: 401
+                error: "Unauthorized"
+                message: "Invalid email or password"
+                timestamp: "2026-06-30T16:15:19.810978051"
+    Forbidden:
+      description: Forbidden — authenticated but lacks the required role.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            Forbidden:
+              value:
+                status: 403
+                error: "Forbidden"
+                message: "Access denied"
+                timestamp: "2026-06-30T16:15:19.810978051"
+    Conflict:
+      description: Conflict — duplicate of an existing unique value (e.g. email/mobile already registered).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            Conflict:
+              value:
+                status: 409
+                error: "Duplicate Entry"
+                message: "Email already registered: john@gmail.com"
+                timestamp: "2026-06-30T16:04:58.208452407"
+    InternalServerError:
+      description: Internal Server Error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            InternalError:
+              value:
+                status: 500
+                error: "Internal Server Error"
+                message: "Failed to obtain R2DBC Connection"
+                timestamp: "2026-06-30T16:08:00.67959247"
