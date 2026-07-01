@@ -22,10 +22,10 @@ info:
     name: Md. Mirajul Islam Tashfi
 servers:
   - url: http://localhost:8080/api
-    description: Local Development (Inventory Management System)
+    description: Local Development
 
   - url: http://localhost:8080/api
-    description: Dev Development (Inventory Management System)
+    description: Dev Development
 
   - url: http://localhost:9090/api
     description: Content Management System (microservice)
@@ -128,6 +128,83 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /customers/{id}:
+    get:
+      tags:
+        - Customer
+      summary: Get Customer by Id
+      description: Returns a single customer identified by its UUID.
+      operationId: getCustomerById
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      responses:
+        '200':
+          description: Customer found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerSingleResponseDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /customers/update/{id}:
+    put:
+      tags:
+        - Customer
+      summary: Update Customer
+      description: Updates an existing customer identified by its UUID.
+      operationId: updateCustomer
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerUpdateRequestDto'
+            example:
+              firstName: "John"
+              lastName: "Doe"
+              gender: "MALE"
+              dateOfBirth: "1995-03-24"
+              address: "456, Gulshan Avenue, Dhaka"
+              contact: "01812345678"
+              email: "john@gmail.com"
+      responses:
+        '200':
+          description: Customer updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerSingleResponseDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /customers/delete/{id}:
+    delete:
+      tags:
+        - Customer
+      summary: Delete Customer
+      description: Deletes the customer with the given UUID.
+      operationId: deleteCustomer
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      responses:
+        '204':
+          description: Customer deleted successfully (no content)
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -588,6 +665,15 @@ paths:
 
 components:
   parameters:
+    CustomerId:
+      name: id
+      in: path
+      required: true
+      description: Customer identifier (UUID).
+      schema:
+        type: string
+        format: uuid
+      example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
     CategoryName:
       name: name
       in: path
@@ -700,6 +786,12 @@ components:
           type: string
           format: date-time
           example: "2026-06-30T16:13:05.21525381"
+        updatedBy:
+          $ref: '#/components/schemas/CreatedBy'
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-06-30T16:13:05.21525381"
 
     # ----- Request DTOs -----
     CustomerRegistrationRequestDto:
@@ -756,6 +848,35 @@ components:
           format: password
           example: "john"
 
+    CustomerUpdateRequestDto:
+      type: object
+      description: |
+        Payload to update an existing customer. Send the fields to change; the
+        customer is identified by the `{id}` path variable.
+      properties:
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        gender:
+          $ref: '#/components/schemas/Gender'
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1995-03-24"
+        address:
+          type: string
+          example: "456, Gulshan Avenue, Dhaka"
+        contact:
+          type: string
+          example: "01812345678"
+        email:
+          type: string
+          format: email
+          example: "john@gmail.com"
+
     # ----- Response DTOs -----
     CustomerRegistrationResponseDto:
       type: object
@@ -802,6 +923,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Customer'
+
+    CustomerSingleResponseDto:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Customer fetched successfully"
+        customerData:
+          $ref: '#/components/schemas/Customer'
 
     # ----- Product Category domain object -----
     ProductCategory:
