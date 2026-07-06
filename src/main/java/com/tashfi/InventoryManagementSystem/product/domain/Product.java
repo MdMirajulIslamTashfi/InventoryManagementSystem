@@ -1,6 +1,7 @@
 package com.tashfi.InventoryManagementSystem.product.domain;
 
 import com.tashfi.InventoryManagementSystem.core.enums.ProductStatus;
+import com.tashfi.InventoryManagementSystem.productimage.domain.ProductImage;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

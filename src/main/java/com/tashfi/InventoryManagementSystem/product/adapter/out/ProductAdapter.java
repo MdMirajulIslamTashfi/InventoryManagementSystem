@@ -1,7 +1,7 @@
 package com.tashfi.InventoryManagementSystem.product.adapter.out;
 
 import com.tashfi.InventoryManagementSystem.product.adapter.out.entity.ProductEntity;
-import com.tashfi.InventoryManagementSystem.product.adapter.out.repository.ProductCategoryRepository;
+import com.tashfi.InventoryManagementSystem.productcategory.adapter.out.repository.ProductCategoryRepository;
 import com.tashfi.InventoryManagementSystem.product.adapter.out.repository.ProductRepository;
 import com.tashfi.InventoryManagementSystem.product.application.port.out.ProductPersistencePort;
 import com.tashfi.InventoryManagementSystem.product.domain.Product;

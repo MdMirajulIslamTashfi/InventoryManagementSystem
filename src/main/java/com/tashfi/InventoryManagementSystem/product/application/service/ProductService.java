@@ -12,12 +12,12 @@ import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.requ
 import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.request.ProductUpdateRequestDto;
 import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.response.ProductResponseDto;
 import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.response.ProductSingleResponseDto;
-import com.tashfi.InventoryManagementSystem.product.application.port.out.CategoryPersistencePort;
-import com.tashfi.InventoryManagementSystem.product.application.port.out.ProductImagePersistencePort;
+import com.tashfi.InventoryManagementSystem.productcategory.application.port.out.CategoryPersistencePort;
+import com.tashfi.InventoryManagementSystem.productimage.application.port.out.ProductImagePersistencePort;
 import com.tashfi.InventoryManagementSystem.product.application.port.out.ProductPersistencePort;
 import com.tashfi.InventoryManagementSystem.product.domain.Product;
-import com.tashfi.InventoryManagementSystem.product.domain.ProductCategory;
-import com.tashfi.InventoryManagementSystem.product.domain.ProductImage;
+import com.tashfi.InventoryManagementSystem.productcategory.domain.ProductCategory;
+import com.tashfi.InventoryManagementSystem.productimage.domain.ProductImage;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
