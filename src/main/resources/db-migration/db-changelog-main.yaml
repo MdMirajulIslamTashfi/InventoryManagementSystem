@@ -69,3 +69,10 @@ databaseChangeLog:
         - sqlFile:
             path: db-migration/010-update-customer-table-add-updated-by-and-at-change-contact-column.sql
             relativeToChangelogFile: false
+  - changeSet:
+      id: 011-alter-product-image-add-cms-columns
+      author: tashfi
+      changes:
+        - sqlFile:
+            path: db-migration/011-alter-product-image-add-cms-columns.sql
+            relativeToChangelogFile: false
