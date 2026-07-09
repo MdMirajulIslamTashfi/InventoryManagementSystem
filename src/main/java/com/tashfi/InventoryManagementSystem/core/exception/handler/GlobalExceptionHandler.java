@@ -72,6 +72,16 @@ public class GlobalExceptionHandler {
                 .build());
     }
 
+    @ExceptionHandler(ProductImageNotFoundException.class)
+    public Mono<ErrorResponse> handleProductImageNotFound(ProductImageNotFoundException ex) {
+        return Mono.just(ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Not Found")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build());
+    }
+
     @ExceptionHandler(DuplicateProductException.class)
     public Mono<ErrorResponse> handleDuplicateProduct(DuplicateProductException ex) {
         return Mono.just(ErrorResponse.builder()
@@ -104,6 +114,8 @@ public class GlobalExceptionHandler {
             return handleNotFound(e);
         if (ex instanceof ProductNotFoundException e)
             return handleProductNotFound(e);
+        if (ex instanceof ProductImageNotFoundException e)
+            return handleProductImageNotFound(e);
         if (ex instanceof CategoryNotFoundException e)
             return handleCategoryNotFound(e);
         if (ex instanceof DuplicateProductException e)

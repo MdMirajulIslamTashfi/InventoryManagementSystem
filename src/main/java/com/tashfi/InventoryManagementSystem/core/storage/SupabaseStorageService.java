@@ -4,7 +4,9 @@ import com.tashfi.InventoryManagementSystem.core.exception.ValidationException;
 import com.tashfi.InventoryManagementSystem.core.util.ImageUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.BodyInserters;
@@ -56,8 +58,8 @@ public class SupabaseStorageService implements StorageService {
         if (!ALLOWED_TYPES.contains(contentType))
             return Mono.error(new ValidationException("Only JPEG, PNG, and WEBP images are allowed"));
 
-        if (file.getSize() > 1024 * 1024)
-            return Mono.error(new ValidationException("Image must not exceed 1MB"));
+        if (file.getSize() > 5L * 1024 * 1024)
+            return Mono.error(new ValidationException("Image must not exceed 5MB"));
 
         String fileName  = imageUtil.buildFileName(file.getOriginalFilename(), productIdentifier);
         String extension = imageUtil.getExtension(fileName);
@@ -81,6 +83,51 @@ public class SupabaseStorageService implements StorageService {
                                         supabaseUrl + "/storage/v1/object/public/"
                                                 + bucket + "/" + fileName)
                 );
+    }
+
+    @Override
+    public Mono<UploadedImageUrls> uploadImage(FilePart file, String identifier, boolean generateThumbnail) {
+        String contentType = file.headers().getContentType() != null
+                ? file.headers().getContentType().toString()
+                : "image/jpeg";
+
+        return DataBufferUtils.join(file.content())
+                .flatMap(dataBuffer -> {
+                    byte[] rawBytes = new byte[dataBuffer.readableByteCount()];
+                    dataBuffer.read(rawBytes);
+                    DataBufferUtils.release(dataBuffer);
+
+                    return Mono.fromCallable(() ->
+                            imageUtil.process(rawBytes, contentType, file.filename(), identifier, generateThumbnail));
+                })
+                .flatMap(processed -> {
+                    Mono<String> originalUpload =
+                            upload(processed.getOriginalBytes(), processed.getOriginalFileName(), processed.getContentType());
+                    Mono<String> thumbnailUpload = processed.getThumbnailBytes() != null
+                            ? upload(processed.getThumbnailBytes(), processed.getThumbnailFileName(), processed.getContentType())
+                            : Mono.just("__NONE__");
+
+                    return Mono.zip(originalUpload, thumbnailUpload)
+                            .map(tuple -> UploadedImageUrls.builder()
+                                    .imageUrl(tuple.getT1())
+                                    .imageName(processed.getOriginalFileName())
+                                    .thumbnailUrl(tuple.getT2().equals("__NONE__") ? null : tuple.getT2())
+                                    .build());
+                });
+    }
+
+    private Mono<String> upload(byte[] bytes, String fileName, String contentType) {
+        return webClient.post()
+                .uri("/object/" + bucket + "/" + fileName)
+                .contentType(MediaType.parseMediaType(contentType))
+                .header("x-upsert", "true")
+                .body(BodyInserters.fromValue(bytes))
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(), response ->
+                        response.bodyToMono(String.class)
+                                .flatMap(body -> Mono.error(new RuntimeException("Supabase upload failed: " + body))))
+                .bodyToMono(String.class)
+                .map(r -> supabaseUrl + "/storage/v1/object/public/" + bucket + "/" + fileName);
     }
 
     @Override

@@ -7,6 +7,8 @@ public class RouterName {
     // PathVariable
     public static final String NAME = "/{name}";
     public static final String ID = "/{id}";
+    public static final String PRODUCT_ID_URL = "/{productId}";
+    public static final String IMAGE_ID_URL = "/{imageId}";
 
     // Customer
     public static final String CUSTOMER_BASE_URL = "/customers";
