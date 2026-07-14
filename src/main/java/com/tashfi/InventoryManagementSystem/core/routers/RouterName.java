@@ -14,6 +14,7 @@ public class RouterName {
     public static final String CUSTOMER_BASE_URL = "/customers";
     public static final String CUSTOMER_REGISTER_URL = "/register";
     public static final String CUSTOMER_LOGIN_URL = "/login";
+    public static final String CUSTOMER_PROFILE_URL = "/profile";
     public static final String CUSTOMER_UPDATE_URL = "/update";
     public static final String CUSTOMER_DELETE_URL = "/delete";
 

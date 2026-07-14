@@ -85,7 +85,6 @@ public class CustomerHandlerTest {
                 .email("j***ohn@gmail.com")
                 .mobile("*******5678")
                 .gender(customer.getGender())
-                .isActive(true)
                 .build();
     }
 
@@ -296,7 +295,7 @@ public class CustomerHandlerTest {
         }
     }
 
-    // GET /api/customers/{id}
+    // GET /api/customers/profile/{id}
     @Nested
     @DisplayName("GET /api/customers/{id}")
     class GetCustomerById {
@@ -318,7 +317,7 @@ public class CustomerHandlerTest {
             when(customerUseCase.findCustomerById(any(UUID.class))).thenReturn(Mono.just(response));
 
             webTestClient.get()
-                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat("/").concat(profile.getId()))
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_PROFILE_URL).concat("/").concat(profile.getId()))
                     .accept(MediaType.APPLICATION_JSON)
                     .exchange()
                     .expectStatus().isOk()
@@ -338,7 +337,7 @@ public class CustomerHandlerTest {
                     .thenReturn(Mono.error(new CustomerNotFoundException("No customer found with id: " + id)));
 
             webTestClient.get()
-                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat("/").concat(id.toString()))
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat(RouterName.CUSTOMER_PROFILE_URL).concat("/").concat(id.toString()))
                     .accept(MediaType.APPLICATION_JSON)
                     .exchange()
                     .expectStatus().isNotFound()
