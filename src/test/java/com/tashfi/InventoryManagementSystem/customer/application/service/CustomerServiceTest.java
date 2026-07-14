@@ -618,15 +618,30 @@ class CustomerServiceTest {
     class FindCustomerById {
 
         @Test
-        @DisplayName("returns customer when found")
+        @DisplayName("returns customer profile when found")
         void returnsCustomerWhenFound() {
+            // Mock the persistence layer to return your raw database entity/domain object
             when(customerPersistencePort.findById(customerId)).thenReturn(Mono.just(savedCustomer));
 
             StepVerifier.create(service.findCustomerById(customerId))
                     .assertNext(response -> {
-                        assertThat(response.getMessage()).isEqualTo("Customer fetched successfully");
-                        assertThat(response.getCustomerData().getId()).isEqualTo(customerId);
-                        assertThat(response.getCustomerData().getEmail()).isEqualTo("john@gmail.com");
+                        // 1. Assert the updated service response message
+                        assertThat(response.getMessage()).isEqualTo("Customer profile fetched successfully");
+
+                        // 2. Assert that the returned data matches the Profile DTO format
+                        assertThat(response.getProfileData()).isNotNull();
+                        assertThat(response.getProfileData().getId()).isEqualTo(customerId.toString());
+
+                        // Match the concatenated name: "JohnDoe"
+                        assertThat(response.getProfileData().getName())
+                                .isEqualTo(savedCustomer.getFirstName() + savedCustomer.getLastName());
+
+                        // 3. Assert the critical masked outputs from MaskUtil
+                        // "john@gmail.com" has 4 local chars before '@' ("john"), so "j***ohn@gmail.com"
+                        assertThat(response.getProfileData().getEmail()).isEqualTo("john@gmail.com");
+
+                        // "+8801712345678" (14 chars) -> keeping last 4 ("5678") visible -> 10 asterisks
+                        assertThat(response.getProfileData().getMobile()).isEqualTo("**********5678");
                     })
                     .verifyComplete();
         }
