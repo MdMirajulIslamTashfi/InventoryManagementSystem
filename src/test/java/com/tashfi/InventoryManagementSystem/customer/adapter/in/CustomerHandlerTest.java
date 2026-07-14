@@ -10,10 +10,8 @@ import com.tashfi.InventoryManagementSystem.customer.adapter.in.router.CustomerR
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.CustomerUseCase;
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.request.CustomerLoginRequestDto;
 import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.request.CustomerRegistrationRequestDto;
-import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerLoginResponseDto;
-import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerRegistrationResponseDto;
-import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerResponseDto;
-import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.CustomerSingleResponseDto;
+import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.request.ProfileRequestDto;
+import com.tashfi.InventoryManagementSystem.customer.application.port.in.dto.response.*;
 import com.tashfi.InventoryManagementSystem.customer.domain.Customer;
 import com.tashfi.InventoryManagementSystem.core.enums.Gender;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,6 +74,18 @@ public class CustomerHandlerTest {
                 .contact("01712345678")
                 .email("john@gmail.com")
                 .password("john123")
+                .build();
+    }
+
+    private ProfileRequestDto buildProfileDto(Customer customer) {
+        return ProfileRequestDto.builder()
+                .id(customer.getId().toString())
+                .name(customer.getFirstName() + " " + customer.getLastName())
+                // Emulate the masking behavior for the mock response
+                .email("j***ohn@gmail.com")
+                .mobile("*******5678")
+                .gender(customer.getGender())
+                .isActive(true)
                 .build();
     }
 
@@ -294,22 +304,30 @@ public class CustomerHandlerTest {
         @Test
         @DisplayName("returns 200 with the customer when found")
         void returns200WhenFound() {
+            // 1. Generate an underlying domain customer first
             Customer customer = buildCustomer();
-            CustomerSingleResponseDto response = CustomerSingleResponseDto.builder()
-                    .message("Customer fetched successfully")
-                    .customerData(customer)
+
+            // 2. Map it to the Profile DTO via our helper (containing masked values)
+            ProfileRequestDto profile = buildProfileDto(customer);
+
+            ProfileResponseDto response = ProfileResponseDto.builder()
+                    .message("Customer profile fetched successfully")
+                    .profileData(profile)
                     .build();
 
             when(customerUseCase.findCustomerById(any(UUID.class))).thenReturn(Mono.just(response));
 
             webTestClient.get()
-                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat("/").concat(customer.getId().toString()))
+                    .uri(RouterName.BASE_URL.concat(RouterName.CUSTOMER_BASE_URL).concat("/").concat(profile.getId()))
                     .accept(MediaType.APPLICATION_JSON)
                     .exchange()
                     .expectStatus().isOk()
                     .expectBody()
-                    .jsonPath("$.message").isEqualTo("Customer fetched successfully")
-                    .jsonPath("$.customerData.email").isEqualTo("john@gmail.com");
+                    .jsonPath("$.message").isEqualTo("Customer profile fetched successfully")
+                    .jsonPath("$.profileData.id").isEqualTo(profile.getId())
+                    .jsonPath("$.profileData.name").isEqualTo("John Doe")
+                    .jsonPath("$.profileData.email").isEqualTo("j***ohn@gmail.com")
+                    .jsonPath("$.profileData.mobile").isEqualTo("*******5678");
         }
 
         @Test

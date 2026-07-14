@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <property resource="application.properties"/>
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="InventoryManagementSystem"/>
+
+    <!-- ── Shared readable console pattern (same style as reference project) ── -->
+    <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%highlight(%-5level)] [%cyan(${appName}, %X{Method}, %X{Uri})] [%thread] %boldYellow(%class{0}) - %msg%n%throwable</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ── Local profile: readable colored console ──────────────────────── -->
+    <springProfile name="local">
+        <root level="INFO">
+            <appender-ref ref="Console"/>
+        </root>
+    </springProfile>
+
+    <!-- ── Dev profile: same readable console, suppress noisy internals ─── -->
+    <springProfile name="dev">
+
+        <!-- Suppress Liquibase noise -->
+        <logger name="liquibase" level="WARN"/>
+
+        <!-- Suppress Spring internal startup chatter -->
+        <logger name="org.springframework.boot.devtools" level="WARN"/>
+        <logger name="org.springframework.data.repository.config" level="WARN"/>
+        <logger name="org.springframework.security" level="WARN"/>
+        <logger name="org.springframework.boot.security" level="WARN"/>
+        <logger name="org.hibernate.validator" level="WARN"/>
+
+        <root level="INFO">
+            <appender-ref ref="Console"/>
+        </root>
+    </springProfile>
+
+    <!-- ── Test profile: WARN only, clean test output ────────────────────── -->
+    <springProfile name="test">
+        <appender name="TestConsole" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+        <root level="WARN">
+            <appender-ref ref="TestConsole"/>
+        </root>
+    </springProfile>
+
+</configuration>
