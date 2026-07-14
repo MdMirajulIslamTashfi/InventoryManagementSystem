@@ -16,5 +16,4 @@ public class ProfileRequestDto {
     private String email;    // masked, e.g. "***iyad@example.com"
     private String mobile;   // masked, e.g. "**********0000"
     private Gender gender;
-    private Boolean isActive;
 }
