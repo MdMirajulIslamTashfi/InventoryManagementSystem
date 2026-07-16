@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.UUID;
+
 @Component
 @RequiredArgsConstructor
 public class ProductAdapter implements ProductPersistencePort {
@@ -23,18 +25,14 @@ public class ProductAdapter implements ProductPersistencePort {
     }
 
     @Override
-    public Mono<Product> findByName(String name) {
-        return productRepository.findByName(name).flatMap(this::enrichWithCategoryName);
+    public Mono<Product> findById(UUID id) {
+        // findById is inherited from R2dbcRepository<ProductEntity, UUID> — no custom query needed
+        return productRepository.findById(id).flatMap(this::enrichWithCategoryName);
     }
 
     @Override
     public Flux<Product> searchByName(String name) {
         return productRepository.searchByNameContaining(name).flatMap(this::enrichWithCategoryName);
-    }
-
-    @Override
-    public Mono<Boolean> existsByName(String name) {
-        return productRepository.existsByName(name);
     }
 
     @Override
@@ -48,8 +46,8 @@ public class ProductAdapter implements ProductPersistencePort {
     }
 
     @Override
-    public Mono<Product> update(String name, Product product) {
-        return productRepository.findByName(name)
+    public Mono<Product> update(UUID id, Product product) {
+        return productRepository.findById(id)
                 .flatMap(existing -> {
                     existing.setCategoryId(product.getCategoryId() != null ? product.getCategoryId() : existing.getCategoryId());
                     existing.setName(product.getName() != null ? product.getName() : existing.getName());
@@ -65,8 +63,9 @@ public class ProductAdapter implements ProductPersistencePort {
     }
 
     @Override
-    public Mono<Void> deleteByName(String name) {
-        return productRepository.deleteByName(name);
+    public Mono<Void> deleteById(UUID id) {
+        // deleteById is inherited from R2dbcRepository<ProductEntity, UUID>
+        return productRepository.deleteById(id);
     }
 
     private Mono<Product> enrichWithCategoryName(ProductEntity entity) {

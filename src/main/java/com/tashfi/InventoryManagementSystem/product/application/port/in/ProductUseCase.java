@@ -4,15 +4,15 @@ import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.requ
 import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.request.ProductUpdateRequestDto;
 import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.response.ProductResponseDto;
 import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.response.ProductSingleResponseDto;
-import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
+import java.util.UUID;
 
 public interface ProductUseCase {
     Mono<ProductResponseDto> findAllProducts();
     Mono<ProductResponseDto> searchProductsByName(String name);
-    Mono<ProductSingleResponseDto> createProduct(ProductRequestDto request, List<MultipartFile> images);
-    Mono<ProductSingleResponseDto> updateProduct(String name, ProductUpdateRequestDto request, List<MultipartFile> newImages);
-    Mono<Void> deleteProduct(String name);
+    Mono<ProductSingleResponseDto> findProductById(UUID id);
+    Mono<ProductSingleResponseDto> createProduct(ProductRequestDto request);
+    Mono<ProductSingleResponseDto> updateProduct(UUID id, ProductUpdateRequestDto request);
+    Mono<Void> deleteProduct(UUID id);
 }
