@@ -5,7 +5,6 @@ import com.tashfi.InventoryManagementSystem.core.enums.ProductStatus;
 import com.tashfi.InventoryManagementSystem.core.exception.CategoryNotFoundException;
 import com.tashfi.InventoryManagementSystem.core.exception.DuplicateProductException;
 import com.tashfi.InventoryManagementSystem.core.exception.ProductNotFoundException;
-import com.tashfi.InventoryManagementSystem.core.storage.StorageService;
 import com.tashfi.InventoryManagementSystem.core.util.ValidationUtil;
 import com.tashfi.InventoryManagementSystem.product.application.port.in.ProductUseCase;
 import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.request.ProductRequestDto;
@@ -13,86 +12,105 @@ import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.requ
 import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.response.ProductResponseDto;
 import com.tashfi.InventoryManagementSystem.product.application.port.in.dto.response.ProductSingleResponseDto;
 import com.tashfi.InventoryManagementSystem.productcategory.application.port.out.CategoryPersistencePort;
-import com.tashfi.InventoryManagementSystem.productimage.application.port.out.ProductImagePersistencePort;
 import com.tashfi.InventoryManagementSystem.product.application.port.out.ProductPersistencePort;
 import com.tashfi.InventoryManagementSystem.product.domain.Product;
 import com.tashfi.InventoryManagementSystem.productcategory.domain.ProductCategory;
-import com.tashfi.InventoryManagementSystem.productimage.domain.ProductImage;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class ProductService implements ProductUseCase {
 
     private final ProductPersistencePort productPersistencePort;
     private final CategoryPersistencePort categoryPersistencePort;
-    private final ProductImagePersistencePort productImagePersistencePort;
-    private final StorageService storageService;
-    // Optional — only present when the "content" profile is active.
-    // Using ObjectProvider keeps ProductService startable on dev/local alone,
-    // with no CMS bean and no CMS calls, while still letting us reach CMS
-    // for cleanup when "content" is active.
-    private final ObjectProvider<ContentServiceClientPort> contentServiceClientPort;
 
-    public ProductService(ProductPersistencePort productPersistencePort,
-                          CategoryPersistencePort categoryPersistencePort,
-                          ProductImagePersistencePort productImagePersistencePort,
-                          StorageService storageService,
-                          ObjectProvider<ContentServiceClientPort> contentServiceClientPort) {
-        this.productPersistencePort = productPersistencePort;
-        this.categoryPersistencePort = categoryPersistencePort;
-        this.productImagePersistencePort = productImagePersistencePort;
-        this.storageService = storageService;
-        this.contentServiceClientPort = contentServiceClientPort;
-    }
+    private final ObjectProvider<ContentServiceClientPort> contentServiceClientPort;
 
     @Override
     public Mono<ProductResponseDto> findAllProducts() {
+        log.info("Fetching all products");
         return productPersistencePort.findAll()
-                .flatMap(this::enrichWithImages)
                 .collectList()
-                .map(list -> ProductResponseDto.builder()
-                        .message("Products fetched successfully")
-                        .totalRecords(list.size())
-                        .productData(list)
-                        .build());
+                .map(list -> {
+                    log.info("Fetched {} products successfully", list.size());
+                    return ProductResponseDto.builder()
+                            .message("Products fetched successfully")
+                            .totalRecords(list.size())
+                            .productData(list)
+                            .build();
+                })
+                .doOnError(ex -> log.error("Error while fetching all products: {}", ex.getMessage(), ex));
     }
 
     @Override
     public Mono<ProductResponseDto> searchProductsByName(String name) {
+        log.info("Searching products by name: {}", name);
         return productPersistencePort.searchByName(name)
-                .flatMap(this::enrichWithImages)
                 .collectList()
-                .map(list -> ProductResponseDto.builder()
-                        .message(list.isEmpty() ? "No products found" : "Products found")
-                        .totalRecords(list.size())
-                        .productData(list)
-                        .build());
+                .flatMap(list -> {
+                    if (list.isEmpty()) {
+                        log.warn("No products found matching name: {}", name);
+                        return Mono.error(new ProductNotFoundException("No products found matching: " + name));
+                    }
+                    log.info("Search for '{}' returned {} product(s)", name, list.size());
+                    return Mono.just(ProductResponseDto.builder()
+                            .message("Products found")
+                            .totalRecords(list.size())
+                            .productData(list)
+                            .build());
+                })
+                .doOnError(ex -> log.error("Error while searching products by name [{}]: {}",
+                        name, ex.getMessage(), ex));
     }
 
     @Override
-    public Mono<ProductSingleResponseDto> createProduct(ProductRequestDto request, List<MultipartFile> images) {
+    public Mono<ProductSingleResponseDto> findProductById(UUID id) {
+        log.info("Fetching product by id: {}", id);
+        return productPersistencePort.findById(id)
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("Product not found for id: {}", id);
+                    return Mono.error(new ProductNotFoundException("Product not found with id: " + id));
+                }))
+                .map(product -> {
+                    log.info("Product fetched successfully for id: {}", id);
+                    return ProductSingleResponseDto.builder()
+                            .message("Product fetched successfully")
+                            .productData(product)
+                            .build();
+                })
+                .doOnError(ex -> log.error("Error while fetching product by id [{}]: {}",
+                        id, ex.getMessage(), ex));
+    }
+
+    @Override
+    public Mono<ProductSingleResponseDto> createProduct(ProductRequestDto request) {
+        log.info("Creating product with name: {}, sku: {}", request.getName(), request.getSku());
         return ValidationUtil.validateInput(request.getName())
                 .then(categoryPersistencePort.findByName(request.getCategoryName()))
-                .switchIfEmpty(Mono.error(new CategoryNotFoundException("Category not found: " + request.getCategoryName())))
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("Create failed - category not found: {}", request.getCategoryName());
+                    return Mono.error(new CategoryNotFoundException("Category not found: " + request.getCategoryName()));
+                }))
                 .flatMap(category -> {
                     Mono<Boolean> skuCheck = (request.getSku() != null && !request.getSku().isBlank())
                             ? productPersistencePort.existsBySku(request.getSku())
                             : Mono.just(false);
 
                     return skuCheck.flatMap(skuExists -> {
-                        if (skuExists)
+                        if (skuExists) {
+                            log.warn("Create failed - duplicate SKU: {}", request.getSku());
                             return Mono.error(new DuplicateProductException("SKU already exists: " + request.getSku()));
+                        }
 
-                        // 1. Save the product first to get its generated UUID
-                        Mono<Product> savedProductMono = productPersistencePort.save(Product.builder()
+                        return productPersistencePort.save(Product.builder()
                                 .categoryId(category.getId())
                                 .name(request.getName())
                                 .description(request.getDescription())
@@ -103,140 +121,94 @@ public class ProductService implements ProductUseCase {
                                 .createdAt(LocalDateTime.now())
                                 .updatedAt(LocalDateTime.now())
                                 .build());
-
-                        return savedProductMono.flatMap(savedProduct -> {
-                            List<MultipartFile> validImages = images != null
-                                    ? images.stream().filter(f -> f != null && !f.isEmpty()).toList()
-                                    : List.of();
-
-                            if (validImages.isEmpty()) {
-                                // No images — return product with empty images list
-                                savedProduct.setImages(List.of());
-                                return Mono.just(savedProduct);
-                            }
-
-                            // 2. Upload images and save each one to product_image table
-                            String identifier = (request.getSku() != null && !request.getSku().isBlank())
-                                    ? request.getSku() : request.getName();
-
-                            return storageService.uploadImages(validImages, identifier)
-                                    .flatMapMany(Flux::fromIterable)
-                                    .flatMap(url -> productImagePersistencePort.save(ProductImage.builder()
-                                            .productId(savedProduct.getId())
-                                            .imageUrl(url)
-                                            .createdAt(LocalDateTime.now())
-                                            .build()))
-                                    .collectList()
-                                    .map(savedImages -> {
-                                        savedProduct.setImages(savedImages);
-                                        return savedProduct;
-                                    });
-                        });
                     });
                 })
-                .map(saved -> ProductSingleResponseDto.builder()
-                        .message("Product created successfully")
-                        .productData(saved)
-                        .build());
+                .map(saved -> {
+                    log.info("Product created successfully with id: {}", saved.getId());
+                    return ProductSingleResponseDto.builder()
+                            .message("Product created successfully")
+                            .productData(saved)
+                            .build();
+                })
+                .doOnError(ex -> log.error("Error while creating product [{}]: {}",
+                        request.getName(), ex.getMessage(), ex));
     }
 
     @Override
-    public Mono<ProductSingleResponseDto> updateProduct(String name, ProductUpdateRequestDto request, List<MultipartFile> newImages) {
-        return productPersistencePort.findByName(name)
-                .switchIfEmpty(Mono.error(new ProductNotFoundException("Product not found: " + name)))
+    public Mono<ProductSingleResponseDto> updateProduct(UUID id, ProductUpdateRequestDto request) {
+        log.info("Updating product with id: {}", id);
+        return productPersistencePort.findById(id)
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("Update failed - product not found for id: {}", id);
+                    return Mono.error(new ProductNotFoundException("Product not found with id: " + id));
+                }))
                 .flatMap(existing -> {
                     Mono<Boolean> categoryCheck = (request.getCategoryName() != null)
                             ? categoryPersistencePort.existsByName(request.getCategoryName())
                             : Mono.just(true);
 
                     return categoryCheck.flatMap(categoryExists -> {
-                        if (!categoryExists)
+                        if (!categoryExists) {
+                            log.warn("Update failed - category not found: {}", request.getCategoryName());
                             return Mono.error(new CategoryNotFoundException(
                                     "Category not found: " + request.getCategoryName()));
+                        }
 
                         Mono<UUID> resolvedCategoryId = (request.getCategoryName() != null)
                                 ? categoryPersistencePort.findByName(request.getCategoryName())
                                 .map(ProductCategory::getId)
                                 : Mono.just(existing.getCategoryId());
 
-                        return resolvedCategoryId.flatMap(categoryId -> {
-                            // 1. Update the product fields
-                            Mono<Product> updatedProductMono = productPersistencePort.update(name, Product.builder()
-                                    .categoryId(categoryId)
-                                    .name(request.getName() != null ? request.getName() : existing.getName())
-                                    .description(request.getDescription() != null ? request.getDescription() : existing.getDescription())
-                                    .quantity(request.getQuantity() != null ? request.getQuantity() : existing.getQuantity())
-                                    .price(request.getPrice() != null ? request.getPrice() : existing.getPrice())
-                                    .sku(request.getSku() != null ? request.getSku() : existing.getSku())
-                                    .status(request.getStatus() != null ? request.getStatus() : existing.getStatus())
-                                    .updatedAt(LocalDateTime.now())
-                                    .build());
-
-                            return updatedProductMono.flatMap(updatedProduct -> {
-                                List<MultipartFile> validImages = newImages != null
-                                        ? newImages.stream().filter(f -> f != null && !f.isEmpty()).toList()
-                                        : List.of();
-
-                                if (validImages.isEmpty()) {
-                                    // No new images — just enrich with existing ones from DB
-                                    return enrichWithImages(updatedProduct);
-                                }
-
-                                // 2. Upload new images and save each to product_image table
-                                String identifier = (request.getSku() != null && !request.getSku().isBlank())
-                                        ? request.getSku()
-                                        : (existing.getSku() != null && !existing.getSku().isBlank())
-                                          ? existing.getSku() : existing.getName();
-
-                                return storageService.uploadImages(validImages, identifier)
-                                        .flatMapMany(Flux::fromIterable)
-                                        .flatMap(url -> productImagePersistencePort.save(ProductImage.builder()
-                                                .productId(updatedProduct.getId())
-                                                .imageUrl(url)
-                                                .createdAt(LocalDateTime.now())
-                                                .build()))
-                                        .collectList()
-                                        .flatMap(newlySaved -> enrichWithImages(updatedProduct));
-                            });
-                        });
+                        return resolvedCategoryId.flatMap(categoryId ->
+                                productPersistencePort.update(id, Product.builder()
+                                        .categoryId(categoryId)
+                                        .name(request.getName() != null ? request.getName() : existing.getName())
+                                        .description(request.getDescription() != null ? request.getDescription() : existing.getDescription())
+                                        .quantity(request.getQuantity() != null ? request.getQuantity() : existing.getQuantity())
+                                        .price(request.getPrice() != null ? request.getPrice() : existing.getPrice())
+                                        .sku(request.getSku() != null ? request.getSku() : existing.getSku())
+                                        .status(request.getStatus() != null ? request.getStatus() : existing.getStatus())
+                                        .updatedAt(LocalDateTime.now())
+                                        .build()));
                     });
                 })
-                .map(saved -> ProductSingleResponseDto.builder()
-                        .message("Product updated successfully")
-                        .productData(saved)
-                        .build());
+                .map(saved -> {
+                    log.info("Product updated successfully for id: {}", id);
+                    return ProductSingleResponseDto.builder()
+                            .message("Product updated successfully")
+                            .productData(saved)
+                            .build();
+                })
+                .doOnError(ex -> log.error("Error while updating product [{}]: {}",
+                        id, ex.getMessage(), ex));
     }
 
     @Override
-    public Mono<Void> deleteProduct(String name) {
-        return productPersistencePort.findByName(name)
-                .switchIfEmpty(Mono.error(new ProductNotFoundException("Product not found: " + name)))
-                .flatMap(p -> productPersistencePort.deleteByName(name)
-                        .then(cleanUpContentImages(p.getId())));
-        // product_image rows are deleted automatically by ON DELETE CASCADE
+    public Mono<Void> deleteProduct(UUID id) {
+        log.info("Deleting product with id: {}", id);
+        return productPersistencePort.findById(id)
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("Delete failed - product not found for id: {}", id);
+                    return Mono.error(new ProductNotFoundException("Product not found with id: " + id));
+                }))
+                .flatMap(p -> productPersistencePort.deleteById(id)
+                        .doOnSuccess(v -> log.info("Product deleted successfully for id: {}", id))
+                        .then(cleanUpContentImages(p.getId())))
+                .doOnError(ex -> log.error("Error while deleting product [{}]: {}",
+                        id, ex.getMessage(), ex));
     }
 
-    // Best-effort: if the "content" profile is active, tell CMS to drop this
-    // product's images too. If it's not active, or CMS is unreachable, we
-    // still want the IMS-side delete to have succeeded — never fail the
-    // product delete because of a CMS hiccup.
     private Mono<Void> cleanUpContentImages(UUID productId) {
         ContentServiceClientPort client = contentServiceClientPort.getIfAvailable();
-        if (client == null)
+        if (client == null) {
+            log.debug("Content profile not active - skipping CMS image cleanup for product id: {}", productId);
             return Mono.empty();
+        }
 
+        log.debug("Requesting CMS to clean up images for product id: {}", productId);
         return client.deleteAllByProductId(productId)
+                .doOnError(e -> log.warn("CMS image cleanup failed for product id [{}] - continuing anyway: {}",
+                        productId, e.getMessage()))
                 .onErrorResume(e -> Mono.empty());
-    }
-
-    //-------------------- Private helpers ------------------------------------------------------
-
-    private Mono<Product> enrichWithImages(Product product) {
-        return productImagePersistencePort.findAllByProductId(product.getId())
-                .collectList()
-                .map(images -> {
-                    product.setImages(images);
-                    return product;
-                });
     }
 }

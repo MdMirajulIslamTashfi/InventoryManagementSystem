@@ -19,9 +19,10 @@ public class ProductRouter {
                 .nest(RequestPredicates.accept(MediaType.APPLICATION_JSON), builder -> builder
                         .GET(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL), productHandler::getAllProducts)
                         .GET(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.PRODUCT_SEARCH_URL).concat(RouterName.NAME), productHandler::searchProducts)
+                        .GET(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.ID), productHandler::getProductById)
                         .POST(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.PRODUCT_ADD_URL), productHandler::createProduct)
-                        .PUT(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.PRODUCT_UPDATE_URL).concat(RouterName.NAME), productHandler::updateProduct)
-                        .DELETE(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.PRODUCT_DELETE_URL).concat(RouterName.NAME), productHandler::deleteProduct)
+                        .PUT(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.PRODUCT_UPDATE_URL).concat(RouterName.ID), productHandler::updateProduct)
+                        .DELETE(RouterName.BASE_URL.concat(RouterName.PRODUCT_BASE_URL).concat(RouterName.PRODUCT_DELETE_URL).concat(RouterName.ID), productHandler::deleteProduct)
                 ).build();
     }
 }
