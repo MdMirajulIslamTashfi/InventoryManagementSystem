@@ -145,7 +145,7 @@ public class CustomerService implements CustomerUseCase {
                     // 1. Map the customer entity to the ProfileDto and apply masking
                     ProfileRequestDto profile = ProfileRequestDto.builder()
                             .id(customer.getId().toString()) // Convert UUID to String if needed
-                            .name(customer.getFirstName() + customer.getLastName())
+                            .name(customer.getFirstName() +" "+ customer.getLastName())
                             .email(MaskUtil.maskEmail(customer.getEmail()))    // Masked Email
                             .mobile(MaskUtil.maskContact(customer.getContact())) // Masked Mobile
                             .gender(customer.getGender())
