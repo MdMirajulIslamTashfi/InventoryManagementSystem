@@ -634,7 +634,7 @@ class CustomerServiceTest {
 
                         // Match the concatenated name: "JohnDoe"
                         assertThat(response.getProfileData().getName())
-                                .isEqualTo(savedCustomer.getFirstName() + savedCustomer.getLastName());
+                                .isEqualTo(savedCustomer.getFirstName() +" " + savedCustomer.getLastName());
 
                         // 3. Assert the critical masked outputs from MaskUtil
                         // "john@gmail.com" has 4 local chars before '@' ("john"), so "j***ohn@gmail.com"
