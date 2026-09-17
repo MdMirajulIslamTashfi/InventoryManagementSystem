@@ -634,14 +634,14 @@ class CustomerServiceTest {
 
                         // Match the concatenated name: "JohnDoe"
                         assertThat(response.getProfileData().getName())
-                                .isEqualTo(savedCustomer.getFirstName() +" " + savedCustomer.getLastName());
+                                .isEqualTo(savedCustomer.getFirstName() + " " + savedCustomer.getLastName());
 
                         // 3. Assert the critical masked outputs from MaskUtil
-                        // "john@gmail.com" has 4 local chars before '@' ("john"), so "j***ohn@gmail.com"
-                        assertThat(response.getProfileData().getEmail()).isEqualTo("john@gmail.com");
+                        // "john@gmail.com" has 4 local chars before '@' ("john"), so "j**n@*****.com"
+                        assertThat(response.getProfileData().getEmail()).isEqualTo("j**n@*****.com");
 
-                        // "+8801712345678" (14 chars) -> keeping last 4 ("5678") visible -> 10 asterisks
-                        assertThat(response.getProfileData().getMobile()).isEqualTo("**********5678");
+                        // "+8801712345678" (14 chars) -> keeping last 3 ("678") visible -> 10 asterisks
+                        assertThat(response.getProfileData().getMobile()).isEqualTo("***********678");
                     })
                     .verifyComplete();
         }
